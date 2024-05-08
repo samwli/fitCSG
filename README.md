@@ -8,3 +8,4 @@ TODOs:
 2. Tune optimizer parameters
 3. Develop the shape primitive SDFs: we need more shapes, and to include rotations in the generatation, which should be then be included as optimizable parameters during the CSG fitting.
 4. Try optimization on point clouds of objects (ShapeNet, real world)
+5. The target SDF is given at the moment, since we are generating it. In real world, we need to convert point clouds to SDF fields.
