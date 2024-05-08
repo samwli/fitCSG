@@ -46,7 +46,7 @@ def process_tree(tree, leaf_params, full):
             if 'right' in tree:
                 new_tree['right'] = process_tree(tree['right'], leaf_params, full)
             return new_tree
-    elif isinstance(tree, str):  # Direct leaf node as a string (simpler case)
+    elif isinstance(tree, str):  # Direct leaf node as a string
         # Initialize parameters for this directly specified leaf, assuming full is False for simple types
         leaf_params[tree] = initialize_params(tree)
         return tree
@@ -128,6 +128,7 @@ if __name__ == '__main__':
     X, Y, Z = torch.meshgrid(x, y, z, indexing='ij')
     points = torch.stack([X.ravel(), Y.ravel(), Z.ravel()], dim=-1).to(device)
 
+    # Load the gt tree and parameters
     gt_tree, gt_params = load_and_initialize_tree(os.path.join(args.input_dir, 'csg_outline.pkl'), True)
     for param in gt_params.values():
         param.data = param.data.to(device)
@@ -136,6 +137,7 @@ if __name__ == '__main__':
     plot_and_save_sdf(ground_truth_sdf_tensor.reshape(grid_side, grid_side, grid_side), grid_side, '_gt', os.path.join(args.input_dir, args.output_dir))
     ground_truth_sdf_flat = ground_truth_sdf_tensor.view(-1)
     
+    # Load the CSG tree outline and initialize parameters
     csg_tree_outline, leaf_params = load_and_initialize_tree(os.path.join(args.input_dir, 'csg_outline.pkl'))
     for param in leaf_params.values():
         param.data = param.data.to(device)
@@ -177,5 +179,4 @@ if __name__ == '__main__':
             predicted_sdf = predicted_sdf.reshape(grid_side, grid_side, grid_side)
             plot_and_save_sdf(predicted_sdf, grid_side, step, os.path.join(args.input_dir, args.output_dir))
         
-
     # After optimization, the leaf_params will contain the optimized parameters.
