@@ -3,6 +3,11 @@ This project currently has two components. The first is for data generation `csg
 
 The second component is `fit_csg.py`. Args: input path (where the `csg_outline.pkl` from the data generation module should be found), output path, and optimizer (Adam, AdamW, SGD, RMSProp). The optimizer parameters and num steps can be tuned in the script for now. The visualized gt SDF and optimized SDFs are written to examine the convergence and correctness. 
 
+## Installation
+First install the conda env: `conda env create -f environment.yml`.
+Next, install pytorch that fits your system.
+
+
 TODOs:
 1. Try SAM, Gauss-Newton, and Levenberg-Marquardt optimizers, and tune parameters
 2. Use multiprocessing to optimize from different random inits in parallel
