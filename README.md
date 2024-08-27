@@ -8,7 +8,7 @@ First install the conda env: `conda env create -f environment.yml`.
 Next, install pytorch that fits your system.
 
 
-TODOs:
+## TODOs
 1. Try SAM, Gauss-Newton, and Levenberg-Marquardt optimizers, and tune parameters
 2. Use multiprocessing to optimize from different random inits in parallel
 3. Develop the shape primitive SDFs. We need more shapes, and to include rotations in the generatation, which should be then be included as optimizable parameters during the CSG fitting.
