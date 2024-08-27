@@ -1,3 +1,7 @@
+import os
+import pickle
+import argparse
+
 import torch
 import torch.optim as optim
 import numpy as np
@@ -5,9 +9,6 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-import os
-import pickle
-import argparse
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Fit CSG parameters to a given SDF.")
@@ -122,6 +123,8 @@ if __name__ == '__main__':
     # Define the grid of points
     grid_side = 50
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f'Using device: {device}')
+    
     x = torch.linspace(-2, 2, grid_side, device=device)
     y = torch.linspace(-2, 2, grid_side, device=device)
     z = torch.linspace(-2, 2, grid_side, device=device)

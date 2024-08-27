@@ -1,11 +1,12 @@
-import numpy as np
 import random
+import pickle
+
+import numpy as np
 from graphviz import Digraph
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 from matplotlib import colors as mcolors
 from scipy import ndimage
-import pickle
 
 operation_abbr = {'Union': 'U', 'Intersection': 'I', 'Subtraction': 'S'}
 vibrant_colors = [
@@ -242,7 +243,7 @@ def plot_sdf(sdf_values, origins, title):
 
 
 def main():
-    depth = 1
+    depth = 3
     csg_tree = generate_csg_tree(depth)
     
     if csg_tree:
