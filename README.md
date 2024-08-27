@@ -9,7 +9,7 @@ Next, install pytorch that fits your system.
 
 
 ## TODOs
-1. Try SAM, Gauss-Newton, and Levenberg-Marquardt optimizers, and tune parameters
+1. Try SAM and Levenberg-Marquardt optimizers and tune parameters
 2. Use multiprocessing to optimize from different random inits in parallel
 3. Develop the shape primitive SDFs. We need more shapes, and to include rotations in the generatation, which should be then be included as optimizable parameters during the CSG fitting.
 4. The target SDF is given at the moment, since we are generating it. For real world experiments, we need to convert point clouds to SDF fields.
