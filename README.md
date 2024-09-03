@@ -1,7 +1,7 @@
 # fitCSG
 This project currently has two components. The first is `csgsdf.py`, which visualizes a signed-distance field (SDF) and pretty(-ish) constructive solid geometry (CSG) graph from a json CSG graph. The script can process a user-provided json, or generate and save a random json tree up to a given depth (there are some limited checks for shape and operation selection to try to create "valid" trees). Note: the random tree generation is less useful as we proceed, so the default behavior will be (`--random_tree=False`) for hand-crafted json CSG trees. I recommend running this script, which does not require gpu acceleration, on a local machine for visualization.
 
-The second component is `fit_csg.py`, which for now depends on a `csg_tree.json` that is processed into a CSG tree outline and random initial leaf params. The tree outline and leaf paramters are used to construct a SDF, and the parameters are optimized to minimize the loss with a target SDF.
+The second component is `fit_csg.py`, which for now depends on a `csg_tree.json` that is processed into a CSG tree outline, a target SDF, and random initial leaf params. The tree outline and leaf paramters are used to construct a predicted SDF, and the leaf params are optimized to minimize the loss with the target SDF.
 
 ## Installation
 First install the conda env: `conda env create -f environment.yml`.
