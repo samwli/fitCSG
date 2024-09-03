@@ -7,7 +7,6 @@ from scipy import ndimage
 from sdf_shapes import sdf_ellipsoid, sdf_prism, sdf_zero, filtered_colors
 from csgsdf import create_grid
 
-
 def generate_parameters():
     """Generates parameters for 3D shapes: position, size, orientation (not used in SDF)."""
     params = torch.zeros(9)
@@ -52,8 +51,8 @@ class Node:
             final_sdf = torch.maximum(sdf_left, -sdf_right)
         
         final_sdf_expanded = final_sdf.unsqueeze(1).expand(-1, 3)
-        origins = torch.where(final_sdf_expanded == sdf_left.unsqueeze(1), color_left, color_right)
-        return final_sdf, origins
+        colors = torch.where(final_sdf_expanded == sdf_left.unsqueeze(1), color_left, color_right)
+        return final_sdf, colors
 
 
 # try different operations to create valid SDFs

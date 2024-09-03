@@ -55,11 +55,16 @@ def plot_sdf(sdf_values, colors, title, viz=True, step=None, save_path='viz'):
     z = z.flatten()
 
     mask = sdf_values.flatten() < 0
-    color_array = colors[mask]  # Directly use origins for colors
+    mask = mask.cpu().numpy()
+    if colors is not None:
+        colors = colors.cpu().numpy()
+        colors = colors[mask]  # Directly use origins for colors
+    else:
+        colors = 'blue'
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    ax.scatter(x[mask], y[mask], z[mask], color=color_array.cpu().numpy(), s=5)
+    ax.scatter(x[mask], y[mask], z[mask], color=colors, s=5)
 
     ax.set_xlabel('X axis')
     ax.set_ylabel('Y axis')

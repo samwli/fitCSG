@@ -48,7 +48,8 @@ def main(input_dir, output_name, opt, grid_size, viz_outputs, num_steps, log_ste
         raise ValueError('Optimizer not supported.')    
     
     points = create_grid(grid_size, device)
-    ground_truth_sdf_tensor, colors = construct_sdf(tree_outline, gt_params, points, False)
+    get_colors = False
+    ground_truth_sdf_tensor, colors = construct_sdf(tree_outline, gt_params, points, get_colors)
     ground_truth_sdf_flat = ground_truth_sdf_tensor.view(-1).to(device)
     
     if viz_outputs:
@@ -57,9 +58,8 @@ def main(input_dir, output_name, opt, grid_size, viz_outputs, num_steps, log_ste
     
     for step in range(num_steps):
         optimizer.zero_grad()
-        predicted_sdf, colors = construct_sdf(tree_outline, leaf_params, points, False)
-        predicted_sdf_flat = predicted_sdf.view(-1)
-        loss = torch.nn.functional.mse_loss(predicted_sdf_flat, ground_truth_sdf_flat)
+        predicted_sdf, colors = construct_sdf(tree_outline, leaf_params, points, get_colors)
+        loss = torch.nn.functional.mse_loss(predicted_sdf.view(-1), ground_truth_sdf_flat)
         loss.backward()
         optimizer.step()
         
@@ -71,9 +71,9 @@ def main(input_dir, output_name, opt, grid_size, viz_outputs, num_steps, log_ste
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Fit CSG parameters to a given SDF.")
-    parser.add_argument('-i', '--input_dir', required=True, help='Input directory containing the tree json')
-    parser.add_argument('-o', '--output_name', required=True, help='Output directory for visualizations.')
-    parser.add_argument('-opt', required=True, help='optimizer')
+    parser.add_argument('-i', '--input_dir', default='.', help='Input directory containing the tree json')
+    parser.add_argument('-o', '--output_name', default='viz', help='Output directory for visualizations.')
+    parser.add_argument('-opt', default='adam', help='optimizer')
     parser.add_argument("--grid_size", type=int, default=50, help="Size of the grid for visualization.")
     parser.add_argument("--viz_outputs", action="store_true", help="Render the CSG tree graph.")
     parser.add_argument("--num_steps", type=int, default=5001, help="Number of optimization steps.")

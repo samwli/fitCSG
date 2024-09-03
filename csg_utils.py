@@ -74,40 +74,20 @@ def construct_sdf(tree, leaf_params, points, get_colors=False):
         elif 'Prism' in tree:
             return sdf_prism(leaf_params[tree], color, points)
     else:  # Recursive case for operations
-        left_sdf, left_color = construct_sdf(tree['left'], leaf_params, points)
-        right_sdf, right_color = construct_sdf(tree['right'], leaf_params, points)
+        left_sdf, left_color = construct_sdf(tree['left'], leaf_params, points, get_colors)
+        right_sdf, right_color = construct_sdf(tree['right'], leaf_params, points, get_colors)
 
         if tree['operation'].lower() == 'union':
-            final_sdf = torch.minimum(left_sdf, right_sdf)
+            final_sdf, color_mask = torch.minimum(left_sdf, right_sdf), left_sdf < right_sdf
         elif tree['operation'].lower() == 'intersection':
-            final_sdf = torch.maximum(left_sdf, right_sdf)
+            final_sdf, color_mask = torch.maximum(left_sdf, right_sdf), left_sdf > right_sdf
         elif tree['operation'].lower() == 'subtraction':
-            final_sdf = torch.maximum(left_sdf, -right_sdf)
+            final_sdf, color_mask = torch.maximum(left_sdf, -right_sdf), left_sdf > -right_sdf
         
         if get_colors:
-            final_sdf_expanded = final_sdf.unsqueeze(1).expand(-1, 3)
             left_color = left_color.to(final_sdf.device)
             right_color = right_color.to(final_sdf.device)
-            colors = torch.where(final_sdf_expanded == left_sdf.unsqueeze(1), left_color, right_color)
+            colors = torch.where(color_mask.unsqueeze(1), left_color, right_color)
             return final_sdf, colors
         else:
-            return final_sdf
-    
-
-# Define a function that takes the tree structure and leaf parameters to construct the SDF
-def construct_sdf(tree, leaf_params, points):
-    if isinstance(tree, str):  # Leaf node case
-        if 'Ellip' in tree:
-            return sdf_ellipsoid(leaf_params[tree], points)
-        elif 'Prism' in tree:
-            return sdf_prism(leaf_params[tree], points)
-    else:  # Recursive case for operations
-        left_sdf = construct_sdf(tree['left'], leaf_params, points)
-        right_sdf = construct_sdf(tree['right'], leaf_params, points)
-
-        if tree['operation'].lower() == 'union':
-            return torch.minimum(left_sdf, right_sdf)
-        elif tree['operation'].lower() == 'intersection':
-            return torch.maximum(left_sdf, right_sdf)
-        elif tree['operation'].lower() == 'subtraction':
-            return torch.maximum(left_sdf, -right_sdf)
+            return final_sdf, None
