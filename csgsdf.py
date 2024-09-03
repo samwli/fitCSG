@@ -24,7 +24,7 @@ def main(grid_size, random_tree, depth, render_graph, tree_path):
 
     points = create_grid(grid_size)
     gt_tree, gt_params = get_tree(csg_tree, True)
-    final_sdf, colors = construct_sdf(gt_tree, gt_params, points)
+    final_sdf, colors = construct_sdf(gt_tree, gt_params, points, True)
     plot_sdf(final_sdf.reshape((grid_size, grid_size, grid_size)), colors, "Final CSG Shape SDF")
 
 

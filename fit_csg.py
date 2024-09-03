@@ -48,7 +48,7 @@ def main(input_dir, output_name, opt, grid_size, viz_outputs, num_steps, log_ste
         raise ValueError('Optimizer not supported.')    
     
     points = create_grid(grid_size, device)
-    ground_truth_sdf_tensor, colors = construct_sdf(tree_outline, gt_params, points)
+    ground_truth_sdf_tensor, colors = construct_sdf(tree_outline, gt_params, points, False)
     ground_truth_sdf_flat = ground_truth_sdf_tensor.view(-1).to(device)
     
     if viz_outputs:
@@ -57,7 +57,7 @@ def main(input_dir, output_name, opt, grid_size, viz_outputs, num_steps, log_ste
     
     for step in range(num_steps):
         optimizer.zero_grad()
-        predicted_sdf, colors = construct_sdf(tree_outline, leaf_params, points)
+        predicted_sdf, colors = construct_sdf(tree_outline, leaf_params, points, False)
         predicted_sdf_flat = predicted_sdf.view(-1)
         loss = torch.nn.functional.mse_loss(predicted_sdf_flat, ground_truth_sdf_flat)
         loss.backward()
