@@ -50,7 +50,7 @@ def visualize_csg_tree(node, graph=None):
 def plot_sdf(sdf_values, colors, title, viz=True, step=None, save_path='viz'):
     grid_size = int(np.cbrt(sdf_values.numel()))
     points = create_grid(grid_size).numpy()
-    mask = sdf_values.cpu().numpy().flatten() < 0
+    mask = sdf_values.detach().cpu().numpy().flatten() < 0
 
     if colors is not None:
         colors = colors.cpu().numpy()[mask]  # Directly use origins for colors
