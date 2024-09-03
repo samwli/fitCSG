@@ -7,6 +7,7 @@ from scipy import ndimage
 from sdf_shapes import sdf_ellipsoid, sdf_prism, sdf_zero, filtered_colors
 from csgsdf import create_grid
 
+
 def generate_parameters():
     """Generates parameters for 3D shapes: position, size, orientation (not used in SDF)."""
     params = torch.zeros(9)
