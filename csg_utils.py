@@ -77,12 +77,20 @@ def construct_sdf(tree, leaf_params, points, get_colors=False):
         left_sdf, left_color = construct_sdf(tree['left'], leaf_params, points, get_colors)
         right_sdf, right_color = construct_sdf(tree['right'], leaf_params, points, get_colors)
 
-        if tree['operation'].lower() == 'union':
-            final_sdf, color_mask = torch.minimum(left_sdf, right_sdf), left_sdf < right_sdf
-        elif tree['operation'].lower() == 'intersection':
-            final_sdf, color_mask = torch.maximum(left_sdf, right_sdf), left_sdf > right_sdf
-        elif tree['operation'].lower() == 'subtraction':
-            final_sdf, color_mask = torch.maximum(left_sdf, -right_sdf), left_sdf > -right_sdf
+        operation = tree['operation'].lower()
+
+        if operation == 'union':
+            final_sdf = torch.minimum(left_sdf, right_sdf)
+            if get_colors:
+                color_mask = left_sdf < right_sdf
+        elif operation == 'intersection':
+            final_sdf = torch.maximum(left_sdf, right_sdf)
+            if get_colors:
+                color_mask = left_sdf > right_sdf
+        elif operation == 'subtraction':
+            final_sdf = torch.maximum(left_sdf, -right_sdf)
+            if get_colors:
+                color_mask = left_sdf > -right_sdf
         
         if get_colors:
             left_color = left_color.to(final_sdf.device)

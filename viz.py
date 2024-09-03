@@ -1,8 +1,11 @@
 import os
 
 import numpy as np
+import torch
 from graphviz import Digraph
 import matplotlib.pyplot as plt
+
+from csg_utils import create_grid
 
 
 def visualize_csg_tree(node, graph=None):
@@ -45,26 +48,19 @@ def visualize_csg_tree(node, graph=None):
 
 
 def plot_sdf(sdf_values, colors, title, viz=True, step=None, save_path='viz'):
-    grid_side = int(np.cbrt(sdf_values.numel()))
-    x, y, z = np.meshgrid(np.linspace(-2, 2, grid_side), 
-                          np.linspace(-2, 2, grid_side), 
-                          np.linspace(-2, 2, grid_side), indexing='ij')
+    grid_size = int(np.cbrt(sdf_values.numel()))
+    points = create_grid(grid_size).numpy()
+    mask = sdf_values.cpu().numpy().flatten() < 0
 
-    x = x.flatten()
-    y = y.flatten()
-    z = z.flatten()
-
-    mask = sdf_values.flatten() < 0
-    mask = mask.cpu().numpy()
     if colors is not None:
-        colors = colors.cpu().numpy()
-        colors = colors[mask]  # Directly use origins for colors
+        colors = colors.cpu().numpy()[mask]  # Directly use origins for colors
     else:
         colors = 'blue'
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    ax.scatter(x[mask], y[mask], z[mask], color=colors, s=5)
+    x, y, z = points[mask].T
+    ax.scatter(xs=x, ys=y, zs=z, c=colors, s=5)
 
     ax.set_xlabel('X axis')
     ax.set_ylabel('Y axis')
