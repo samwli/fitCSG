@@ -7,7 +7,6 @@ The second component is `fit_csg.py`, which for now depends on a `csg_tree.json`
 First install the conda env: `conda env create -f environment.yml`.
 Next, install pytorch that fits your system.
 
-
 ## TODOs
 1. Try SAM and Levenberg-Marquardt optimizers and tune parameters.
 2. Use multiprocessing to optimize from different random inits in parallel.
