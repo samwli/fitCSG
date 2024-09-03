@@ -9,7 +9,6 @@ def visualize_csg_tree(node, graph=None):
     """ Visualize the CSG tree using Graphviz. Displays node information succinctly. """
     if graph is None:
         graph = Digraph()
-        graph.attr('node', shape='ellipse')
 
     if "type" in node:
         # Extract and format the parameters for display

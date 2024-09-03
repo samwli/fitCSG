@@ -22,7 +22,7 @@ class Leaf:
     def __init__(self, indexed_name, params=None):
         self.indexed_name = indexed_name  # Directly use the indexed name
         self.params = params if params is not None else generate_parameters()
-        self.color = list(filtered_colors.values())[random.randint(0, len(filtered_colors)-1)]
+        self.color = random.choice(list(filtered_colors.values()))
 
     def sdf(self, points):
         if 'Prism' in self.indexed_name:

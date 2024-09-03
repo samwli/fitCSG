@@ -8,6 +8,15 @@ import numpy as np
 from sdf_shapes import sdf_ellipsoid, sdf_prism, filtered_colors
 
 
+def create_grid(num_points=50, device='cpu'):
+    x = torch.linspace(-2, 2, num_points, device=device)
+    y = torch.linspace(-2, 2, num_points, device=device)
+    z = torch.linspace(-2, 2, num_points, device=device)
+    X, Y, Z = torch.meshgrid(x, y, z, indexing='ij')
+    points = torch.stack([X.ravel(), Y.ravel(), Z.ravel()], dim=-1)
+    return points
+
+
 def initialize_params(shape_type):
     """Generates new parameters for a given shape type."""
     position = np.random.uniform(-1, 1, 3)
@@ -23,44 +32,39 @@ def get_tree(tree, full=False):
             tree = json.load(open(tree))
     
     leaf_params = {}
-    processed_tree = process_tree(tree, leaf_params, full)
-    return processed_tree, leaf_params
+    tree_outline = process_tree(tree, leaf_params, full)
+    return tree_outline, leaf_params
 
 
 def process_tree(tree, leaf_params, full):
-    """Recursively process the tree to strip parameters and initialize new ones or keep existing ones."""
-    if isinstance(tree, dict):
-        if 'type' in tree:  # It's a leaf node with parameters
-            leaf_name = tree['type']
-            # Conditionally keep existing parameters or initialize new ones
-            if full:
-                # Use existing parameters
-                center = torch.tensor(tree['params']['center'], dtype=torch.float32)
-                sizes = torch.tensor(tree['params']['sizes'], dtype=torch.float32)
-                rotation = torch.tensor(tree['params']['rotation'], dtype=torch.float32)
-                leaf_params[leaf_name] = torch.cat([center, sizes, rotation])
-            else:
-                # Initialize new random parameters
-                leaf_params[leaf_name] = initialize_params(leaf_name)
-            return leaf_name  # Return the leaf name as a node in the tree
-        else:  # It's an internal node
-            # Recursively handle the left and right children
-            new_tree = {'operation': tree['operation']}
-            if 'left' in tree:
-                new_tree['left'] = process_tree(tree['left'], leaf_params, full)
-            if 'right' in tree:
-                new_tree['right'] = process_tree(tree['right'], leaf_params, full)
-            return new_tree
-    elif isinstance(tree, str):  # Direct leaf node as a string
-        # Initialize parameters for this directly specified leaf, assuming full is False for simple types
-        leaf_params[tree] = initialize_params(tree)
-        return tree
+    """Recursively process the tree to return the outline and initialize new or keep existing leaf params."""
+    if 'type' in tree:  # It's a leaf node with parameters
+        leaf_name = tree['type']
+        # Conditionally keep existing parameters or initialize new ones
+        if full:
+            # Use existing parameters
+            center = torch.tensor(tree['params']['center'], dtype=torch.float32)
+            sizes = torch.tensor(tree['params']['sizes'], dtype=torch.float32)
+            rotation = torch.tensor(tree['params']['rotation'], dtype=torch.float32)
+            leaf_params[leaf_name] = torch.cat([center, sizes, rotation])
+        else:
+            # Initialize new random parameters
+            leaf_params[leaf_name] = initialize_params(leaf_name)
+        return leaf_name  # Return the leaf name as a node in the tree
+    else:  # It's an internal node
+        # Recursively handle the left and right children
+        new_tree = {'operation': tree['operation']}
+        if 'left' in tree:
+            new_tree['left'] = process_tree(tree['left'], leaf_params, full)
+        if 'right' in tree:
+            new_tree['right'] = process_tree(tree['right'], leaf_params, full)
+        return new_tree
 
 
 # Define a function that takes the tree structure and leaf parameters to construct the SDF
 def construct_sdf(tree, leaf_params, points):
     if isinstance(tree, str):  # Leaf node case
-        color = list(filtered_colors.values())[random.randint(0, len(filtered_colors)-1)]
+        color = random.choice(list(filtered_colors.values()))
         if 'Ellip' in tree:
             return sdf_ellipsoid(leaf_params[tree],color, points)
         elif 'Prism' in tree:
