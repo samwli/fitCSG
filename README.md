@@ -12,5 +12,5 @@ Next, install pytorch that fits your system.
 2. Use multiprocessing to optimize from different random inits in parallel.
 3. Optimization should occur in a normalize space, so solve ICP/Procrustes for scale, shift, and rotation.
 4. Bridge the gaps from monocular RGB -> full object point cloud -> target SDF.
-5. Create a dataset to develop the optimization and LLM modules. This requires defining further SDF shapes (with rotation) and hand-crafting the tree and parameter values.
+5. Create a dataset to develop the optimization and LLM modules. This requires defining further SDF shapes (with rotation) in `sdf_shapes.py` and hand-crafting trees and parameter values for different objects.
 6. Experiment with LLM prompting to give us the tree outline for real world objects. We should also get initial parameters from LLM since we are optimizing in a normalized space, LLM may be able to provide relatively meaningful params. 
