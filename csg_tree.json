@@ -1,0 +1,52 @@
+{
+    "operation": "Union",
+    "left": {
+        "operation": "Union",
+        "left": {
+            "operation": "Union",
+            "left": {
+                "type": "Ellipsoid0",
+                "params": {
+                    "center": [-0.9, -0.45, -1.2],
+                    "sizes": [0.1, 0.1, 1.0],
+                    "rotation": [0, 0, 0]
+                }
+            },
+            "right": {
+                "type": "Ellipsoid1",
+                "params": {
+                    "center": [0.9, -0.45, -1.2],
+                    "sizes": [0.1, 0.1, 1.0],
+                    "rotation": [0, 0, 0]
+                }
+            }
+        },
+        "right": {
+            "operation": "Union",
+            "left": {
+                "type": "Ellipsoid2",
+                "params": {
+                    "center": [-0.9, 0.45, -1.2],
+                    "sizes": [0.1, 0.1, 1.0],
+                    "rotation": [0, 0, 0]
+                }
+            },
+            "right": {
+                "type": "Ellipsoid3",
+                "params": {
+                    "center": [0.9, 0.45, -1.2],
+                    "sizes": [0.1, 0.1, 1.0],
+                    "rotation": [0, 0, 0]
+                }
+            }
+        }
+    },
+    "right": {
+        "type": "Prism0",
+        "params": {
+            "center": [0, 0, 0],
+            "sizes": [1.8, 0.9, 0.2],
+            "rotation": [0, 0, 0]
+        }
+    }
+}
