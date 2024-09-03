@@ -80,7 +80,6 @@ if __name__ == "__main__":
     parser.add_argument("--log_steps", type=int, default=500, help="Log every n steps.")
     parser.add_argument("--tree_path", type=str, default="csg_tree.json", help="Path read/write csg json trees.")
     
-
     args = parser.parse_args()
     
     main(args.input_dir, args.output_name, args.opt, args.grid_size, args.viz_outputs, args.num_steps, args.log_steps, args.tree_path)
