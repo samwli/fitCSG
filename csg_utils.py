@@ -17,12 +17,20 @@ def create_grid(num_points=50, device='cpu'):
     return points
 
 
-def initialize_params(shape_type):
-    """Generates new parameters for a given shape type."""
-    position = np.random.uniform(-1, 1, 3)
-    size = np.random.uniform(0.5, 1.5, 3)
-    params = np.concatenate([position, size])
-    return torch.nn.Parameter(torch.tensor(params, dtype=torch.float32, requires_grad=True))
+def initialize_params(ground_truth_params, noise_std=0.1):
+    """Generates new parameters by adding noise to the ground truth parameters."""
+    # Extract center and sizes from the ground truth parameters
+    center = ground_truth_params['center']
+    sizes = ground_truth_params['sizes']
+    
+    # Add Gaussian noise to the center and sizes
+    noisy_center = center + np.random.normal(0, noise_std, size=len(center))
+    noisy_sizes = sizes + np.random.normal(0, noise_std, size=len(sizes))
+
+    # Return the noisy parameters as a concatenated tensor
+    noisy_params = np.concatenate([noisy_center, noisy_sizes])
+    return torch.nn.Parameter(torch.tensor(noisy_params, dtype=torch.float32, requires_grad=True))
+
 
 
 def get_tree(tree, full=False):
@@ -49,7 +57,7 @@ def process_tree(tree, leaf_params, full):
             leaf_params[leaf_name] = torch.cat([center, sizes, rotation])
         else:
             # Initialize new random parameters
-            leaf_params[leaf_name] = initialize_params(leaf_name)
+            leaf_params[leaf_name] = initialize_params(tree['params'])
         return leaf_name  # Return the leaf name as a node in the tree
     else:  # It's an internal node
         # Recursively handle the left and right children
