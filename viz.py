@@ -47,27 +47,21 @@ def visualize_csg_tree(node, graph=None):
     return graph
 
 
-def plot_sdf(sdf_values, colors, title, viz=True, step=None, save_path='viz'):
-    grid_size = int(np.cbrt(sdf_values.numel()))
-    points = create_grid(grid_size).numpy()
-    mask = sdf_values.detach().cpu().numpy().flatten() < 0
-
-    if colors is not None:
-        colors = colors.cpu().numpy()[mask]  # Directly use origins for colors
-    else:
-        colors = 'blue'
-
+def plot_sdf(xyz, colors, title, viz=True, step=None, save_path='viz'):
+    xyz = xyz.cpu().detach().numpy()
+    colors = colors.cpu().numpy()
+    
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    x, y, z = points[mask].T
+    x, y, z = xyz.T
     ax.scatter(xs=x, ys=y, zs=z, c=colors, s=5)
 
     ax.set_xlabel('X axis')
     ax.set_ylabel('Y axis')
     ax.set_zlabel('Z axis')
-    ax.set_xlim(-2, 2)
-    ax.set_ylim(-2, 2)
-    ax.set_zlim(-2, 2)
+    ax.set_xlim(-20, 20)
+    ax.set_ylim(-20, 20)
+    ax.set_zlim(-20, 20)
     ax.set_box_aspect([1,1,1])  # Ensuring equal aspect ratio for all axes to make the plot truly square
     ax.set_title(title)
     
@@ -75,7 +69,7 @@ def plot_sdf(sdf_values, colors, title, viz=True, step=None, save_path='viz'):
         plt.show()
     else:     
         os.makedirs(save_path, exist_ok=True)
-        filename = os.path.join(save_path, 'predicted_sdf{}.png'.format(step))
+        filename = os.path.join(save_path, 'predicted_sdf_{}.png'.format(step))
         plt.savefig(filename)
     plt.close(fig)  # Close the figure to free memory
     
