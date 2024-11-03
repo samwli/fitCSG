@@ -7,27 +7,29 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from csg_utils import construct_sdf, get_tree, create_grid, get_gt
+from csg_utils import construct_sdf, get_tree, create_grid
+from compute_gt import get_gt
 from viz import plot_sdf
 from multiprocessing import Process, Manager
 
+device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
+
 # Function to perform the optimization
 def optimize(input_dir, output_name, opt, grid_size, viz_outputs, num_steps, log_steps, tree_path):    
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Using device: {device}')
     
     # Load the gt tree and parameters
     tree_outline, leaf_params = get_tree(os.path.join(input_dir, tree_path))
 
     if viz_outputs:
-        grid_points = create_grid(grid_size).to(torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
+        grid_points = create_grid(grid_size).to(device)
         
     for param_key in leaf_params.keys():
         leaf_params[param_key] = torch.nn.Parameter(leaf_params[param_key].to(device))
 
     # Choose optimizer
     if opt == 'adam':
-        learning_rate = 0.001
+        learning_rate = 0.0005
         betas = (0.9, 0.999)   
         eps = 1e-8  
         optimizer = optim.Adam(leaf_params.values(), lr=learning_rate, betas=betas, eps=eps)
@@ -48,8 +50,10 @@ def optimize(input_dir, output_name, opt, grid_size, viz_outputs, num_steps, log
     else:
         raise ValueError('Optimizer not supported.')    
     
-    gt_path = "screwdriver.npy"
-    sdf_points, sdf_values, R, scale, shift = get_gt(gt_path, device, tree_outline, leaf_params, grid_size)
+    pc1_path = "pc1.npy"
+    pc2_path = "pc2.npy"
+    mask_path = "pc_mask.npy"
+    sdf_points, sdf_values, R, scale, shift = get_gt(pc1_path, pc2_path, mask_path, device, tree_outline, leaf_params, grid_size, False)
     
     for step in range(num_steps):
         optimizer.zero_grad()
@@ -66,8 +70,8 @@ def optimize(input_dir, output_name, opt, grid_size, viz_outputs, num_steps, log
                 mask = shape.flatten() <= 0
                 shape_points = grid_points[mask]
                 colors = colors[mask]
-                plot_sdf(shape_points, colors, points, "Predicted SDF", viz=False, step=step, save_path=save_path)
-            
+                plot_sdf(shape_points, colors, "Predicted SDF", viz=False, step=step, save_path=save_path)
+
     return tree_outline, leaf_params, R, scale, shift
 
 
@@ -75,13 +79,12 @@ def optimize(input_dir, output_name, opt, grid_size, viz_outputs, num_steps, log
 def main(input_dir, output_name, opt, grid_size, viz_outputs, num_steps, log_steps, tree_path):
     # Run single-threaded if num_processes is None or 1
     tree_outline, leaf_params, R, scale, shift = optimize(input_dir, output_name, opt, grid_size, viz_outputs, num_steps, log_steps, tree_path)
-
-    grid_points = create_grid(grid_size).to(torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
+    grid_points = create_grid(500).to(device)
     sdf_values, colors = construct_sdf(tree_outline, leaf_params, grid_points, True)
     mask = sdf_values.flatten() <= 0
     pred_xyz = grid_points[mask]
     colors = colors[mask]
-    
+
     # inverse shift
     pred_xyz += shift
     
@@ -96,11 +99,6 @@ def main(input_dir, output_name, opt, grid_size, viz_outputs, num_steps, log_ste
     
     pc = np.concatenate([np.array(pred_xyz.cpu()), np.array(colors.cpu())], axis=1)
     np.save('predicted_screwdriver_pc.npy', pc)
-
-    # # Only plot the final SDF for the single process run
-    # if viz_outputs:
-    #     save_path = os.path.join(input_dir, f'{output_name}')
-    #     plot_sdf(pred_xyz, colors, "Predicted SDF", viz=False, step='final', save_path=save_path)
         
 
 if __name__ == "__main__":

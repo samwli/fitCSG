@@ -50,7 +50,7 @@ def visualize_csg_tree(node, graph=None):
 def plot_sdf(xyz, colors, title, viz=True, step=None, save_path='viz'):
     xyz = xyz.cpu().detach().numpy()
     colors = colors.cpu().numpy()
-    
+
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
     x, y, z = xyz.T

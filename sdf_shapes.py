@@ -37,3 +37,54 @@ def sdf_zero(params, color, points):
     colors = color.repeat(points.shape[0], 1) if color is not None else None
     
     return distances, colors
+
+
+def sdf_cylinder(params, color, points):
+    # Cylinder parameters: [center_x, center_y, center_z, radius, height, axis_x, axis_y, axis_z]
+    center, radius, height, axis = params[:3], params[3], params[4], params[5:8]
+    axis = axis / torch.linalg.norm(axis)  # Normalize the axis vector
+
+    # Vector from center to points
+    center_to_point = points - center
+    # Project the center_to_point onto the axis to find the height component
+    projected_height = torch.sum(center_to_point * axis, dim=1).unsqueeze(1) * axis
+    radial_component = center_to_point - projected_height
+    
+    # Calculate the signed distance to the cylinder
+    distances = torch.linalg.norm(radial_component, dim=1) - radius
+    distances = torch.max(distances, torch.abs(projected_height.norm(dim=1) - height / 2))
+
+    colors = color.repeat(points.shape[0], 1) if color is not None else None
+
+    return distances, colors
+
+
+def sdf_cone(params, color, points):
+    # Cone parameters: [center_x, center_y, center_z, radius, height, axis_x, axis_y, axis_z]
+    center, radius, height, axis = params[:3], params[3], params[4], params[5:8]
+    axis = axis / torch.linalg.norm(axis)  # Normalize the axis vector
+
+    # Vector from the cone's apex to the points
+    apex_to_point = points - center
+
+    # Project apex_to_point onto the axis to find the height component
+    projected_height = torch.sum(apex_to_point * axis, dim=1, keepdim=True) * axis
+    radial_component = apex_to_point - projected_height
+
+    # Calculate the angle of the cone
+    cone_angle = torch.atan(radius / height)
+
+    # Compute distances based on projection
+    distance_to_axis = torch.linalg.norm(radial_component, dim=1)
+    projected_height_length = torch.linalg.norm(projected_height, dim=1)
+
+    # Compute the SDF for the cone
+    distance = torch.max(
+        distance_to_axis - projected_height_length * torch.tan(cone_angle),
+        -projected_height_length + height
+    )
+    distance = torch.where(projected_height_length > height, projected_height_length - height, distance)
+
+    colors = color.repeat(points.shape[0], 1) if color is not None else None
+
+    return distance, colors
