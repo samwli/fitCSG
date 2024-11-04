@@ -20,14 +20,25 @@ def visualize_csg_tree(node, graph=None):
         shape_name = node["type"]
         params_text_lines.append(f"{shape_name}\n")
 
-        # Add the center, sizes, and rotation on new lines
-        center = f"Center: {', '.join(str(round(val, 2)) for val in node['params']['center'])}"
-        sizes = f"Sizes: {', '.join(str(round(val, 2)) for val in node['params']['sizes'])}"
-        rotation = f"Rot: {', '.join(str(round(val)) for val in node['params']['rotation'])}"
+        if shape_name == 'Cylinder' or shape_name == 'Cone':
+            center = f"Center: {', '.join(str(round(val, 2)) for val in node['params']['center'])}"
+            radius = f"Radius: {round(node['params']['radius'], 2)}"
+            height = f"Height: {round(node['params']['height'], 2)}"
+            rotation = f"Rot: {', '.join(str(round(val)) for val in node['params']['rotation'])}"
+            
+            params_text_lines.append(f"{center}\n")
+            params_text_lines.append(f"{radius}\n")
+            params_text_lines.append(f"{height}\n")
+            params_text_lines.append(f"{rotation}")
+        else:
+            # Add the center, sizes, and rotation on new lines
+            center = f"Center: {', '.join(str(round(val, 2)) for val in node['params']['center'])}"
+            sizes = f"Sizes: {', '.join(str(round(val, 2)) for val in node['params']['sizes'])}"
+            rotation = f"Rot: {', '.join(str(round(val)) for val in node['params']['rotation'])}"
 
-        params_text_lines.append(f"{center}\n")
-        params_text_lines.append(f"{sizes}\n")
-        params_text_lines.append(f"{rotation}")
+            params_text_lines.append(f"{center}\n")
+            params_text_lines.append(f"{sizes}\n")
+            params_text_lines.append(f"{rotation}")
 
         # Join all parts to form the final text for the node label
         params_text = ''.join(params_text_lines).strip()
@@ -59,9 +70,9 @@ def plot_sdf(xyz, colors, title, viz=True, step=None, save_path='viz'):
     ax.set_xlabel('X axis')
     ax.set_ylabel('Y axis')
     ax.set_zlabel('Z axis')
-    ax.set_xlim(-20, 20)
-    ax.set_ylim(-20, 20)
-    ax.set_zlim(-20, 20)
+    ax.set_xlim(-1, 1)
+    ax.set_ylim(-1, 1)
+    ax.set_zlim(-1, 1)
     ax.set_box_aspect([1,1,1])  # Ensuring equal aspect ratio for all axes to make the plot truly square
     ax.set_title(title)
     

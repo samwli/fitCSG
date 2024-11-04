@@ -70,6 +70,7 @@ def optimize(input_dir, output_name, opt, grid_size, viz_outputs, num_steps, log
                 mask = shape.flatten() <= 0
                 shape_points = grid_points[mask]
                 colors = colors[mask]
+                breakpoint()
                 plot_sdf(shape_points, colors, "Predicted SDF", viz=False, step=step, save_path=save_path)
 
     return tree_outline, leaf_params, R, scale, shift
@@ -110,7 +111,7 @@ if __name__ == "__main__":
     parser.add_argument("--viz_outputs", action="store_true", help="Render the CSG tree graph.")
     parser.add_argument("--num_steps", type=int, default=5001, help="Number of optimization steps.")
     parser.add_argument("--log_steps", type=int, default=500, help="Log every n steps.")
-    parser.add_argument("--tree_path", type=str, default="csg_tree.json", help="Path read/write csg json trees.")
+    parser.add_argument("--tree_path", type=str, default="example_csg_tree.json", help="Path read/write csg json trees.")
     
     args = parser.parse_args()
     
