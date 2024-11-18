@@ -223,12 +223,20 @@ def get_gt(pc1_path, pc2_path, mask_path, device, tree_outline, leaf_params, gri
     sdf_values *= scale
     
     # rotation
+    # R = torch.tensor([
+    #     [1, 0, 0, 0],
+    #     [0, 0, 1, 0],
+    #     [0, -1, 0, 0],
+    #     [0, 0, 0, 1]
+    # ], dtype=torch.float32).to(object_points.device)
+    
     R = torch.tensor([
-        [1, 0, 0, 0],
-        [0, 0, 1, 0],
-        [0, -1, 0, 0],
-        [0, 0, 0, 1]
+        [-1,  0,  0,  0],
+        [ 0,  0, -1,  0],
+        [ 0,  1,  0,  0],
+        [ 0,  0,  0,  1]
     ], dtype=torch.float32).to(object_points.device)
+
 
     object_points_homogeneous = torch.cat([object_points, torch.ones((object_points.shape[0], 1), device=object_points.device)], dim=1)  # (N, 4)
     object_points_homogeneous = object_points_homogeneous @ R

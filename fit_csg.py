@@ -24,35 +24,40 @@ def optimize(input_dir, output_name, opt, grid_size, viz_outputs, num_steps, log
     if viz_outputs:
         grid_points = create_grid(grid_size).to(device)
         
-    for param_key in leaf_params.keys():
-        leaf_params[param_key] = torch.nn.Parameter(leaf_params[param_key].to(device))
+    params_to_optimize = []
+    for shape_key in leaf_params.keys():
+        for param_key in leaf_params[shape_key].keys():
+            # Convert to `torch.nn.Parameter` and move to the device
+            param = torch.nn.Parameter(leaf_params[shape_key][param_key].to(device))
+            leaf_params[shape_key][param_key] = param  # Update the dictionary with the parameter
+            params_to_optimize.append(param)  # Collect the parameter for optimization
 
     # Choose optimizer
     if opt == 'adam':
         learning_rate = 0.0005
         betas = (0.9, 0.999)   
         eps = 1e-8  
-        optimizer = optim.Adam(leaf_params.values(), lr=learning_rate, betas=betas, eps=eps)
+        optimizer = optim.Adam(params_to_optimize, lr=learning_rate, betas=betas, eps=eps)
     elif opt == 'sgd':
         learning_rate = 0.01  
         momentum = 0.9
         weight_decay = 0.0001 
-        optimizer = optim.SGD(leaf_params.values(), lr=learning_rate, momentum=momentum, weight_decay=weight_decay)
+        optimizer = optim.SGD(params_to_optimize, lr=learning_rate, momentum=momentum, weight_decay=weight_decay)
     elif opt == 'rmsprop':
         learning_rate = 0.001
         alpha = 0.99  
         eps = 1e-8  
-        optimizer = optim.RMSprop(leaf_params.values(), lr=learning_rate, alpha=alpha, eps=eps)
+        optimizer = optim.RMSprop(params_to_optimize, lr=learning_rate, alpha=alpha, eps=eps)
     elif opt == 'adamw':
         learning_rate = 0.001 
         weight_decay = 0.01
-        optimizer = optim.AdamW(leaf_params.values(), lr=learning_rate, weight_decay=weight_decay)
+        optimizer = optim.AdamW(params_to_optimize, lr=learning_rate, weight_decay=weight_decay)
     else:
         raise ValueError('Optimizer not supported.')    
     
-    pc1_path = "pc1.npy"
-    pc2_path = "pc2.npy"
-    mask_path = "pc_mask.npy"
+    pc1_path = "output_files/pc1.npy"
+    pc2_path = "output_files/pc2.npy"
+    mask_path = "output_files/pc_mask.npy"
     sdf_points, sdf_values, R, scale, shift = get_gt(pc1_path, pc2_path, mask_path, device, tree_outline, leaf_params, grid_size, False)
     
     for step in range(num_steps):
@@ -70,7 +75,6 @@ def optimize(input_dir, output_name, opt, grid_size, viz_outputs, num_steps, log
                 mask = shape.flatten() <= 0
                 shape_points = grid_points[mask]
                 colors = colors[mask]
-                breakpoint()
                 plot_sdf(shape_points, colors, "Predicted SDF", viz=False, step=step, save_path=save_path)
 
     return tree_outline, leaf_params, R, scale, shift
@@ -109,7 +113,7 @@ if __name__ == "__main__":
     parser.add_argument('-opt', default='adam', help='optimizer')
     parser.add_argument("--grid_size", type=int, default=100, help="Size of the grid for visualization.")
     parser.add_argument("--viz_outputs", action="store_true", help="Render the CSG tree graph.")
-    parser.add_argument("--num_steps", type=int, default=5001, help="Number of optimization steps.")
+    parser.add_argument("--num_steps", type=int, default=0, help="Number of optimization steps.")
     parser.add_argument("--log_steps", type=int, default=500, help="Log every n steps.")
     parser.add_argument("--tree_path", type=str, default="example_csg_tree.json", help="Path read/write csg json trees.")
     
