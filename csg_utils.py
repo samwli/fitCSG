@@ -5,20 +5,21 @@ import torch
 from scipy import ndimage
 import numpy as np
 
-from sdf_shapes import sdf_ellipsoid, sdf_prism, sdf_cone, sdf_cylinder, filtered_colors
+from sdf_shapes import sdf_ellipsoid, sdf_prism, sdf_cone, sdf_cylinder, sdf_sphere, filtered_colors
 
 sdf_dict = {
     'Ellipsoid': sdf_ellipsoid,
     'Prism': sdf_prism,
     'Cone': sdf_cone,
-    'Cylinder': sdf_cylinder
+    'Cylinder': sdf_cylinder,
+    'Sphere': sdf_sphere
 }
 
 
 def create_grid(num_points=100, device='cpu'):
-    x = torch.linspace(-0.5, 0.5, num_points, device=device)
-    y = torch.linspace(-0.5, 0.5, num_points, device=device)
-    z = torch.linspace(-0.5, 1.25, num_points, device=device)
+    x = torch.linspace(-1, 1, num_points, device=device)
+    y = torch.linspace(-1, 1, num_points, device=device)
+    z = torch.linspace(-1, 1, num_points, device=device)
     X, Y, Z = torch.meshgrid(x, y, z, indexing='ij')
     points = torch.stack([X.ravel(), Y.ravel(), Z.ravel()], dim=-1)
     return points

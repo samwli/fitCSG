@@ -17,7 +17,7 @@ def visualize_csg_tree(node, graph=None):
         # Extract and format the parameters for display
         params_text_lines = []
         # Add the shape name as the first line
-        shape_name = node["type"]
+        shape_name = node["type"][:-1]
         params_text_lines.append(f"{shape_name}\n")
 
         if shape_name == 'Cylinder' or shape_name == 'Cone':

@@ -6,6 +6,79 @@ import cv2
 from csg_utils import construct_sdf, create_grid
 
 
+def icp(object_points, predicted_points, max_iters=50, tolerance=1e-6):
+    """
+    Align ground truth (object_points) to prediction (predicted_points) using ICP.
+    
+    Args:
+        object_points (torch.Tensor): Ground truth point cloud (M x 3).
+        predicted_points (torch.Tensor): Predicted point cloud (N x 3).
+        max_iters (int): Maximum number of iterations.
+        tolerance (float): Convergence tolerance.
+    
+    Returns:
+        R (torch.Tensor): Rotation matrix (3x3).
+        scale (float): Scaling factor.
+        T (torch.Tensor): Translation vector (3,).
+        transformed_object_points (torch.Tensor): Aligned ground truth points.
+    """
+    # Initialize transformation parameters
+    R = torch.eye(3, device=object_points.device)
+    T = torch.zeros(3, device=object_points.device)
+    scale = 1.0
+    
+    # Start with the ground truth (object points)
+    obj_points = object_points.clone()
+    pred_points = predicted_points.clone()
+    
+    for i in range(max_iters):
+        # Find closest points
+        distances = torch.cdist(obj_points, pred_points)  # Pairwise distance matrix
+        closest_indices = torch.argmin(distances, dim=0)  # Closest object point for each predicted point
+        closest_points = obj_points[closest_indices]
+        
+        # Compute centroids
+        obj_centroid = closest_points.mean(dim=0)
+        pred_centroid = pred_points.mean(dim=0)
+        
+        # Center the points
+        obj_centered = closest_points - obj_centroid
+        pred_centered = pred_points - pred_centroid
+        
+        # Compute scale
+        obj_norm = torch.norm(obj_centered, dim=1).mean()
+        pred_norm = torch.norm(pred_centered, dim=1).mean()
+        scale = pred_norm / obj_norm
+        
+        obj_centered *= scale  # Apply scaling to centered object points
+        
+        # Compute rotation using Singular Value Decomposition (SVD)
+        H = obj_centered.T @ pred_centered  # Covariance matrix
+        U, _, Vt = torch.linalg.svd(H)
+        R_new = Vt.T @ U.T
+        
+        # Correct reflection if necessary
+        if torch.linalg.det(R_new) < 0:
+            Vt[-1, :] *= -1
+            R_new = Vt.T @ U.T
+        
+        # Compute final translation to map object to predicted
+        T_new = pred_centroid - (R_new @ (obj_centroid * scale))
+        
+        # Apply the transformation to object points
+        obj_points = (object_points * scale) @ R_new.T + T_new
+        
+        # Check for convergence
+        if torch.norm(T - T_new) < tolerance and torch.norm(R - R_new) < tolerance:
+            break
+        
+        # Update transformation parameters
+        R = R_new
+        T = T_new
+    
+    return R, scale, T
+
+
 def sample_band_around_object(object_points, table_z, footprint_points, num_sample_points=1000, radius=0.1, num_perturbations_per_point=10):
     """
     Sample points around the object, using the footprint to determine SDF signs.
@@ -142,20 +215,17 @@ def sample_box_below_footprint(footprint_points, table_z, radius=0.1, margin=0.0
     return sampled_points, sdf_values
 
 
-def get_gt(pc1_path, pc2_path, mask_path, device, tree_outline, leaf_params, grid_size, surface_only=True):
+def get_gt(pc1_path, mask_path, device, tree_outline, leaf_params, grid_size, surface_only=True):
     """
     Compute object and footprint points from the point clouds and mask, with or without sampling bands.
     """
     # Load point clouds and mask
     pc1 = torch.tensor(np.load(pc1_path), dtype=torch.float32).to(device)
-    pc2 = torch.tensor(np.load(pc2_path), dtype=torch.float32).to(device)
     mask = torch.tensor(np.load(mask_path), dtype=torch.bool).to(device)
     H, W = mask.shape
 
     # Extract object points using the mask
-    pc1_object_points = pc1[:, :, :3][mask]  
-    pc2_object_points = pc2[:, :, :3][mask]
-    object_points = torch.cat([pc1_object_points, pc2_object_points], dim=0)
+    object_points = pc1[:, :, :3][mask]
 
     # Find the bounding box around the object in 2D
     rows, cols = torch.where(mask)
@@ -170,11 +240,10 @@ def get_gt(pc1_path, pc2_path, mask_path, device, tree_outline, leaf_params, gri
 
     # Crop region for table estimation
     cropped_pc1 = pc1[y_min:y_max, x_min:x_max, :3]
-    cropped_pc2 = pc2[y_min:y_max, x_min:x_max, :3]
     cropped_mask = mask[y_min:y_max, x_min:x_max]
 
     # Get the table points and compute table_z
-    outside_points = torch.cat([cropped_pc1[~cropped_mask], cropped_pc2[~cropped_mask]], dim=0)
+    outside_points =cropped_pc1[~cropped_mask]
     table_z = outside_points[:, 2].min()
     table_z = 0
     
@@ -200,55 +269,13 @@ def get_gt(pc1_path, pc2_path, mask_path, device, tree_outline, leaf_params, gri
         sdf_points = torch.cat([object_points, footprint_points, band_points_object, band_points_footprint], dim=0)
         sdf_values = torch.cat([object_sdf_values, footprint_sdf_values, band_sdf_object, band_sdf_footprint], dim=0)
     
-    np.save('sdf_points.npy', sdf_points.cpu().numpy())
-    np.save('sdf_values.npy', sdf_values.cpu().numpy())
-    
     points = create_grid(grid_size).to(device)
     predicted_sdf, _ = construct_sdf(tree_outline, leaf_params, points, False)
     mask = predicted_sdf <= 0
     pred_xyz = points[mask]
     
-    # scale
-    pred_min = pred_xyz.min(dim=0)[0]
-    pred_max = pred_xyz.max(dim=0)[0]
-    pred_extent = torch.norm(pred_max - pred_min)  
-    
-    gt_min = object_points.min(dim=0)[0]
-    gt_max = object_points.max(dim=0)[0]
-    gt_extent = torch.norm(gt_max - gt_min)  
-    
-    scale = pred_extent / gt_extent
-    object_points *= scale
-    sdf_points *= scale
+    R, scale, shift = icp(pred_xyz, object_points)
+    sdf_points = (sdf_points * scale) @ R.T + shift
     sdf_values *= scale
-    
-    # rotation
-    # R = torch.tensor([
-    #     [1, 0, 0, 0],
-    #     [0, 0, 1, 0],
-    #     [0, -1, 0, 0],
-    #     [0, 0, 0, 1]
-    # ], dtype=torch.float32).to(object_points.device)
-    
-    R = torch.tensor([
-        [-1,  0,  0,  0],
-        [ 0,  0, -1,  0],
-        [ 0,  1,  0,  0],
-        [ 0,  0,  0,  1]
-    ], dtype=torch.float32).to(object_points.device)
-
-
-    object_points_homogeneous = torch.cat([object_points, torch.ones((object_points.shape[0], 1), device=object_points.device)], dim=1)  # (N, 4)
-    object_points_homogeneous = object_points_homogeneous @ R
-    object_points = object_points_homogeneous[:, :3]
-    
-    sdf_points_homogeneous = torch.cat([sdf_points, torch.ones((sdf_points.shape[0], 1), device=sdf_points.device)], dim=1)  # (N, 4)
-    sdf_points_homogeneous = sdf_points_homogeneous @ R
-    sdf_points = sdf_points_homogeneous[:, :3]
-
-    # shift
-    shift = torch.mean(object_points, dim=0) - torch.mean(pred_xyz, dim=0)
-    object_points -= shift 
-    sdf_points -= shift
 
     return sdf_points, sdf_values, R, scale, shift
