@@ -26,8 +26,8 @@ def main(grid_size, random_tree, depth, render_graph, tree_path):
     gt_tree, gt_params = get_tree(csg_tree)
     final_sdf, colors = construct_sdf(gt_tree, gt_params, points, True)
     
-    mask = (-0.01 <= final_sdf.flatten()) & (final_sdf.flatten() <= 0.01)
-    # mask = final_sdf.flatten() <= 0
+    # mask = (-0.01 <= final_sdf.flatten()) & (final_sdf.flatten() <= 0.01)
+    mask = final_sdf.flatten() <= 0
     shape_points = points[mask]
     colors = colors[mask]
 
@@ -36,7 +36,7 @@ def main(grid_size, random_tree, depth, render_graph, tree_path):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="CSG Tree Visualization")
-    parser.add_argument("--grid_size", type=int, default=50, help="Size of the grid for visualization.")
+    parser.add_argument("--grid_size", type=int, default=100, help="Size of the grid for visualization.")
     parser.add_argument("--random_tree", action="store_true", help="Generate a random CSG tree.")
     parser.add_argument("--depth", type=int, help="Depth of the random CSG tree.")
     parser.add_argument("--render_graph", action="store_true", help="Render the CSG tree graph.")

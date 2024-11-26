@@ -9,32 +9,22 @@ def hex_to_rgb_normalized(hex_color):
 
 
 vibrant_colors = [
-    'blue', 'red', 'green', 'yellow', 'purple', 'deepskyblue', 'darkorange', 'mediumseagreen'
+    'blue', 'red', 'green', 'purple', 'deepskyblue', 'darkorange', 'mediumseagreen'
 ]
 filtered_colors = {key: hex_to_rgb_normalized(mcolors.CSS4_COLORS[key]) for key in vibrant_colors}
 
 
 def sdf_ellipsoid(params, color, points):
-    center, sizes, _ = params['center'], params['sizes'], params['rotation']
+    center, sizes, _ = params['center'], params['sizes'], params['axis']
     distances = torch.linalg.norm((points - center) / sizes, dim=1) - 1
     colors = color.repeat(points.shape[0], 1) if color is not None else None
 
     return distances, colors
 
 
-# def sdf_prism(params, color, points):
-#     center, sizes, _ = params['center'], params['sizes'], params['rotation']
-#     rel_pos = points - center
-#     outside = torch.abs(rel_pos) - sizes
-#     distances = torch.maximum(outside, torch.zeros_like(outside)).sum(dim=1) + torch.minimum(torch.max(outside, dim=1).values, torch.zeros_like(points[:, 0]))
-#     colors = color.repeat(points.shape[0], 1) if color is not None else None
-
-#     return distances, colors
-
-
 def sdf_prism(params, color, points):
     # Prism parameters: [center_x, center_y, center_z, length_x, length_y, length_z, rotation_x, rotation_y, rotation_z]
-    center, length, rotation = params['center'], params['length'], params['rotation']
+    center, length, rotation = params['center'], params['sizes'], params['axis']
     half_lengths = length / 2  # Half-lengths in each dimension
     rotation = rotation / torch.linalg.norm(rotation)  # Normalize rotation vector (if needed)
     
@@ -75,9 +65,9 @@ def sdf_sphere(params, color, points):
 
 def sdf_cylinder(params, color, points):
     # Cylinder parameters: [center_x, center_y, center_z, radius, height, axis_x, axis_y, axis_z]
-    center, radius, height, axis = params['center'], params['radius'], params['height'], params['rotation']
+    center, radius, height, axis = params['center'], params['radius'], params['height'], params['axis']
     axis = axis / torch.linalg.norm(axis)  # Normalize the axis vector
-    axis = torch.tensor([0, 0, 1]).to(points.device)
+
     # Vector from the center of the cylinder to each point
     center_to_point = points - center
 
@@ -106,9 +96,8 @@ def sdf_cylinder(params, color, points):
 
 def sdf_cone(params, color, points):
     # Cylinder parameters: [center_x, center_y, center_z, radius, height, axis_x, axis_y, axis_z]
-    center, radius, height, axis = params['center'], params['radius'], params['height'], params['rotation']
+    center, radius, height, axis = params['center'], params['radius'], params['height'], params['axis']
     axis = axis / torch.linalg.norm(axis)  # Normalize the axis vector
-    axis = torch.tensor([0, 0, 1]).to(points.device)
  
     # Vector from the center of the cylinder to each point
 

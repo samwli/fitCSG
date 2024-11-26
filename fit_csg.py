@@ -55,10 +55,9 @@ def optimize(input_dir, output_name, opt, grid_size, viz_outputs, num_steps, log
     else:
         raise ValueError('Optimizer not supported.')    
     
-    pc1_path = "output_files/pc1.npy"
-    pc2_path = "output_files/pc2.npy"
-    mask_path = "output_files/pc_mask.npy"
-    sdf_points, sdf_values, R, scale, shift = get_gt(pc1_path, pc2_path, mask_path, device, tree_outline, leaf_params, grid_size, False)
+    pc_path = "sunglasses_data/sunglasses_pc1.npy"
+    mask_path = "sunglasses_data/sunglasses_mask.npy"
+    sdf_points, sdf_values, R, scale, shift = get_gt(pc_path, mask_path, device, tree_outline, leaf_params, grid_size, False)
     
     for step in range(num_steps):
         optimizer.zero_grad()
@@ -91,19 +90,21 @@ def main(input_dir, output_name, opt, grid_size, viz_outputs, num_steps, log_ste
     colors = colors[mask]
 
     # inverse shift
-    pred_xyz += shift
+    pred_xyz -= shift
     
     # inverse rotation
     R_inv = R.transpose(0, 1)
+    R_homogeneous = torch.eye(4, device=R.device)  # Create 4x4 identity matrix
+    R_homogeneous[:3, :3] = R_inv
     pred_xyz = torch.cat([pred_xyz, torch.ones((pred_xyz.shape[0], 1), device=pred_xyz.device)], dim=1)  # (N, 4)
-    pred_xyz = pred_xyz @ R_inv
+    pred_xyz = pred_xyz @ R_homogeneous
     pred_xyz = pred_xyz[:, :3]
     
     # inverse scale
     pred_xyz /= scale
     
     pc = np.concatenate([np.array(pred_xyz.cpu()), np.array(colors.cpu())], axis=1)
-    np.save('predicted_screwdriver_pc.npy', pc)
+    np.save('predicted_sunglasses_pc.npy', pc)
         
 
 if __name__ == "__main__":
