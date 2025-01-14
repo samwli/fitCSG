@@ -15,7 +15,7 @@ def generateTree(tns, object, hypothesis=None):
     ]
     if hypothesis:
         request.append({"role": "assistant", "content": hypothesis})
-        request.append({"role": "user", "content": f"Can you please generate another tree that uses different shapes and/or operations for the {object} object?"})
+        request.append({"role": "user", "content": f"Real world objects have diverse instances. Can you please generate another tree represents a geometrically different instance the {object} object?"})
 
     response = tns.translate(request, image=None, return_query=False)   
     if response.success:
@@ -31,9 +31,9 @@ def main():
     # Setup Typechat
     ts = TypeChat()
     ts.createLanguageModel(
-        model="gpt-4o", 
-        # model="o1-preview", 
-        api_key="API_KEY", 
+        # model="gpt-4o", 
+        model="o1-preview", 
+        api_key="", 
         org_key=None,
         use_json_mode=True,
         user_mode_only=True,
@@ -44,8 +44,9 @@ def main():
     tns = ts.createJsonTranslator(name="CSGResponse", basedir="./TypeChat/typechat/schemas")
 
     # Query the model
-    answer_1 = generateTree(tns, object="Mug")
-    answer_2 = generateTree(tns, object="Mug", hypothesis=answer_1)
+    object_name = "wire_cutters"
+    answer_1 = generateTree(tns, object=object_name)
+    answer_2 = generateTree(tns, object=object_name, hypothesis=answer_1)
 
 if __name__ == "__main__":
     main()
