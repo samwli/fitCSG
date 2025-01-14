@@ -20,7 +20,6 @@ def icp(object_points, predicted_points, max_iters=50, tolerance=1e-6):
         R (torch.Tensor): Rotation matrix (3x3).
         scale (float): Scaling factor.
         T (torch.Tensor): Translation vector (3,).
-        transformed_object_points (torch.Tensor): Aligned ground truth points.
     """
     # Initialize transformation parameters
     R = torch.eye(3, device=object_points.device)
@@ -34,16 +33,16 @@ def icp(object_points, predicted_points, max_iters=50, tolerance=1e-6):
     for i in range(max_iters):
         # Find closest points
         distances = torch.cdist(obj_points, pred_points)  # Pairwise distance matrix
-        closest_indices = torch.argmin(distances, dim=0)  # Closest object point for each predicted point
-        closest_points = obj_points[closest_indices]
+        closest_indices = torch.argmin(distances, dim=1)  # Closest predicted point for each object point
+        closest_points = pred_points[closest_indices]
         
         # Compute centroids
-        obj_centroid = closest_points.mean(dim=0)
-        pred_centroid = pred_points.mean(dim=0)
+        obj_centroid = obj_points.mean(dim=0)
+        pred_centroid = closest_points.mean(dim=0)
         
         # Center the points
-        obj_centered = closest_points - obj_centroid
-        pred_centered = pred_points - pred_centroid
+        obj_centered = obj_points - obj_centroid
+        pred_centered = closest_points - pred_centroid
         
         # Compute scale
         obj_norm = torch.norm(obj_centered, dim=1).mean()
@@ -65,11 +64,11 @@ def icp(object_points, predicted_points, max_iters=50, tolerance=1e-6):
         # Compute final translation to map object to predicted
         T_new = pred_centroid - (R_new @ (obj_centroid * scale))
         
-        # Apply the transformation to object points
-        obj_points = (object_points * scale) @ R_new.T + T_new
-        
         # Check for convergence
-        if torch.norm(T - T_new) < tolerance and torch.norm(R - R_new) < tolerance:
+        if (
+            torch.norm(T - T_new) < tolerance and
+            torch.norm(R - R_new) < tolerance
+        ):
             break
         
         # Update transformation parameters
