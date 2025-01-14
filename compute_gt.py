@@ -311,7 +311,6 @@ def get_gt(pc1_path, mask_path, device, tree_outline, leaf_params, grid_size, su
     if params_exists:
         params = np.load(f'custom_dataset/{obj}_params.npz')
         scale, rel_pose, pose_to_table = torch.tensor(params['scale']).to(device), torch.tensor(params['rel_pose']).to(device), torch.tensor(params['pose_to_table']).to(device)
-        rel_pose = torch.eye(4).to(device)
     else:
         scale, rel_pose = get_alignment(device, mask.clone(), pc1.clone(), tree_outline, leaf_params)
         pose_to_table = None

@@ -1,0 +1,63 @@
+{
+    "operation": "Subtraction",
+    "left": {
+        "type": "Ellipsoid0",
+        "params": {
+            "center": [
+                0,
+                0,
+                0
+            ],
+            "sizes": [
+                0.7,
+                0.2,
+                0.7
+            ],
+            "axis": [
+                0,
+                0,
+                1
+            ]
+        },
+        "part": "WireCutterBody"
+    },
+    "right": {
+        "operation": "Union",
+        "left": {
+            "type": "Cylinder0",
+            "params": {
+                "center": [
+                    0.2,
+                    0,
+                    0
+                ],
+                "radius": 0.1,
+                "height": 1.0,
+                "axis": [
+                    1,
+                    0,
+                    0
+                ]
+            },
+            "part": "LeftCutout"
+        },
+        "right": {
+            "type": "Cylinder1",
+            "params": {
+                "center": [
+                    -0.2,
+                    0,
+                    0
+                ],
+                "radius": 0.1,
+                "height": 1.0,
+                "axis": [
+                    -1,
+                    0,
+                    0
+                ]
+            },
+            "part": "RightCutout"
+        }
+    }
+}

@@ -1,0 +1,45 @@
+{
+    "operation": "Union",
+    "left": {
+        "type": "Prism0",
+        "params": {
+            "center": [
+                0.15,
+                0,
+                0
+            ],
+            "sizes": [
+                0.6,
+                0.05,
+                0.02
+            ],
+            "axis": [
+                1,
+                0,
+                0
+            ]
+        },
+        "part": "Blade"
+    },
+    "right": {
+        "type": "Prism1",
+        "params": {
+            "center": [
+                -0.15,
+                0,
+                0
+            ],
+            "sizes": [
+                0.3,
+                0.08,
+                0.03
+            ],
+            "axis": [
+                1,
+                0,
+                0
+            ]
+        },
+        "part": "Handle"
+    }
+}
