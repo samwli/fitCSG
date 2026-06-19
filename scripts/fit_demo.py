@@ -1,17 +1,29 @@
-"""End-to-end, data-free demo: watch a CSG tree fit a point cloud.
+"""End-to-end, data-free demo: watch a CSG hypothesis fit a target point cloud.
 
-This is the visual smoke test for the whole pipeline. It:
+This mirrors the intended workflow: an LLM proposes an *abstract* hypothesis
+(shapes + plausible params in a unit cube), the observed object is normalised to
+the same scale, coarse alignment brings them into rough correspondence, and then
+the hypothesis parameters are optimised to fit the specific instance.
 
-1. loads a ground-truth CSG tree (``--tree``) and samples a target point cloud
-   + target SDF from it (no external data needed);
-2. randomises the leaf parameters to get a deliberately-wrong starting tree;
-3. optimises the leaf parameters back toward the target, rendering a frame of
+Concretely, with no external data:
+
+1. ``--tree`` is the actual instance (ground truth); a target point cloud +
+   target SDF are sampled from it;
+2. the starting hypothesis is ``--init_tree`` if given (the realistic case: a
+   recognisable-but-imperfect mug), else ``--tree`` with randomised params (a
+   harder stress test);
+3. the hypothesis params are optimised toward the target, rendering
    ``target cloud (grey) + current CSG surface (colour)`` every few steps;
-4. stitches the frames into ``<outdir>/fit.gif`` (the GIF is the deliverable;
-   the per-step PNG frames are temporary and removed unless ``--keep_frames``).
+4. frames are stitched into ``<outdir>/fit.gif`` (frames are temporary unless
+   ``--keep_frames``).
 
-Example:
-    python scripts/fit_demo.py --tree examples/mug.json --num_steps 500 --outdir demo_out
+NOTE: coarse alignment (estimating the unknown relative pose) is still a TODO,
+so the demo assumes the hypothesis and instance are already roughly aligned;
+optimisation then refines proportions/pose/fine params.
+
+Example (realistic: abstract hypothesis -> instance):
+    python scripts/fit_demo.py --tree examples/mug.json \
+        --init_tree examples/mug_init.json --num_steps 500 --outdir demo_out
 """
 
 import argparse
@@ -38,7 +50,13 @@ def surface_for_display(tree, grid):
 
 def main():
     parser = argparse.ArgumentParser(description="Animated CSG-fits-pointcloud demo")
-    parser.add_argument("--tree", default="examples/mug.json")
+    parser.add_argument("--tree", default="examples/mug.json", help="actual instance (target)")
+    parser.add_argument(
+        "--init_tree",
+        default=None,
+        help="starting hypothesis tree (same topology as --tree); if omitted, "
+        "--tree's params are randomised instead",
+    )
     parser.add_argument("--num_steps", type=int, default=600)
     parser.add_argument("--frame_every", type=int, default=20)
     parser.add_argument("--grid_size", type=int, default=64)
@@ -67,9 +85,13 @@ def main():
     )
     target_display, _ = surface_for_display(gt_tree, grid)
 
-    # Deliberately-wrong starting tree.
-    tree = parse_tree(args.tree)
-    randomize_leaf_params(tree, position=0.4, log_scale=0.4)
+    # Starting hypothesis: the realistic case uses a separate, recognisable-but-
+    # imperfect tree (e.g. an LLM-proposed abstract mug); otherwise randomise.
+    if args.init_tree:
+        tree = parse_tree(args.init_tree)
+    else:
+        tree = parse_tree(args.tree)
+        randomize_leaf_params(tree, position=0.4, log_scale=0.4)
 
     frame_paths = []
 

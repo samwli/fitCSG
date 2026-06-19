@@ -1,0 +1,36 @@
+{
+    "op": "union",
+    "left": {
+        "op": "subtraction",
+        "left": {
+            "shape": "cylinder",
+            "name": "body",
+            "params": {
+                "center": [0.0, 0.0, 0.05],
+                "radius": 0.38,
+                "height": 1.25,
+                "rotation": [0, 0, 0]
+            }
+        },
+        "right": {
+            "shape": "cylinder",
+            "name": "cavity",
+            "params": {
+                "center": [0.0, 0.0, 0.22],
+                "radius": 0.28,
+                "height": 1.05,
+                "rotation": [0, 0, 0]
+            }
+        }
+    },
+    "right": {
+        "shape": "torus",
+        "name": "handle",
+        "params": {
+            "center": [0.48, 0.0, 0.12],
+            "radius": 0.28,
+            "tube": 0.06,
+            "rotation": [90, 0, 12]
+        }
+    }
+}

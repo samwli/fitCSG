@@ -11,10 +11,11 @@ object.
 
 ![CSG fitting a point cloud](assets/fit_demo.gif)
 
-*Above: the data-free demo (`examples/mug.json`). A deliberately-randomised CSG
-tree (colour) is optimised until its surface matches the target point cloud
-(grey): a hollow cylinder body, a subtracted cavity, and a rotated torus
-handle.*
+*Above: the data-free demo. An LLM-style **abstract mug hypothesis**
+(`examples/mug_init.json`, colour — taller/thinner, tilted handle) is optimised
+until it fits the **actual instance** (`examples/mug.json`, grey point cloud).
+This mirrors the intended workflow — start from a plausible hypothesis, not from
+random — and the parameters refine to match the specific object.*
 
 > **Status.** This was research code that was buggy and partly faked-to-work; it
 > was rebuilt in June 2026 into a clean, *correct* implementation of the idea
@@ -54,7 +55,8 @@ scripts/
   fit_demo.py         animated fit -> GIF (the visual smoke test)
 examples/
   sunglasses.json     original hand-authored example (converted to new schema)
-  mug.json            demo: cylinder - cavity + torus handle (rotation, subtraction, torus)
+  mug.json            demo *instance*: cylinder - cavity + torus handle
+  mug_init.json       abstract mug *hypothesis* (LLM-style start for the demo)
 tests/                pytest suite (run: pytest)
 ```
 
@@ -75,8 +77,9 @@ python scripts/visualize_tree.py --tree examples/mug.json --save mug.png
 # Self-contained fit (treat the tree as GT, randomise params, recover them)
 python scripts/fit.py --tree examples/mug.json --num_steps 1500 --restarts 4
 
-# Animated GIF of the fit (target cloud in grey, CSG surface in colour)
-python scripts/fit_demo.py --tree examples/mug.json --num_steps 500 --outdir demo_out
+# Animated GIF: an abstract mug hypothesis optimised onto the actual instance
+python scripts/fit_demo.py --tree examples/mug.json \
+    --init_tree examples/mug_init.json --num_steps 500 --outdir demo_out
 
 # Fit to a real observation (needs your own data; see TODOs)
 python scripts/fit.py --target files --tree examples/mug.json \
