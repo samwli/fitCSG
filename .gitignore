@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.png
+*.gv
+*.pdf
+fitted_tree.json
+csg_tree*
+viz/
+demo_out/
+# Generated GIFs are ignored, except the committed example in assets/.
+*.gif
+!assets/*.gif

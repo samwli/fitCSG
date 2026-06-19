@@ -1,51 +1,56 @@
 {
-    "operation": "Union",
+    "op": "union",
     "left": {
-        "operation": "Union",
+        "op": "union",
         "left": {
-            "operation": "Union",
+            "op": "union",
             "left": {
-                "type": "Ellipsoid0",
+                "shape": "ellipsoid",
+                "name": "arm_l",
                 "params": {
                     "center": [-0.9, -0.45, -1.2],
-                    "sizes": [0.1, 0.1, 1.0],
+                    "size": [0.1, 0.1, 1.0],
                     "rotation": [0, 0, 0]
                 }
             },
             "right": {
-                "type": "Ellipsoid1",
+                "shape": "ellipsoid",
+                "name": "arm_r",
                 "params": {
                     "center": [0.9, -0.45, -1.2],
-                    "sizes": [0.1, 0.1, 1.0],
+                    "size": [0.1, 0.1, 1.0],
                     "rotation": [0, 0, 0]
                 }
             }
         },
         "right": {
-            "operation": "Union",
+            "op": "union",
             "left": {
-                "type": "Ellipsoid2",
+                "shape": "ellipsoid",
+                "name": "lens_l",
                 "params": {
                     "center": [-0.9, 0.45, -1.2],
-                    "sizes": [0.1, 0.1, 1.0],
+                    "size": [0.1, 0.1, 1.0],
                     "rotation": [0, 0, 0]
                 }
             },
             "right": {
-                "type": "Ellipsoid3",
+                "shape": "ellipsoid",
+                "name": "lens_r",
                 "params": {
                     "center": [0.9, 0.45, -1.2],
-                    "sizes": [0.1, 0.1, 1.0],
+                    "size": [0.1, 0.1, 1.0],
                     "rotation": [0, 0, 0]
                 }
             }
         }
     },
     "right": {
-        "type": "Prism0",
+        "shape": "box",
+        "name": "frame",
         "params": {
             "center": [0, 0, 0],
-            "sizes": [1.8, 0.9, 0.2],
+            "size": [1.8, 0.9, 0.2],
             "rotation": [0, 0, 0]
         }
     }
