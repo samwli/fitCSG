@@ -4,8 +4,8 @@ Public API re-exports for convenience::
 
     from fitcsg import parse_tree, evaluate, create_grid, fit
 
-See ``README.md`` for the high-level pipeline and ``HANDOFF.md`` for the state
-of the code and open TODOs.
+See ``README.md`` for the intended workflow, conventions, known limitations and
+the open TODO roadmap.
 """
 
 from .csg import (

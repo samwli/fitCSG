@@ -4,10 +4,12 @@ Fit a **Constructive Solid Geometry (CSG) tree of signed-distance primitives**
 to a 3D object, as a compact, interpretable, editable, grasp-aware shape
 abstraction (the work behind the *CSGGrasp* submission).
 
-Given a tree **topology** (which primitives + boolean ops, authored by hand or
-by an LLM), the continuous **leaf parameters** (center / size / rotation / …)
-are optimised so the tree's SDF matches a target SDF derived from an observed
-object.
+An LLM (or a human) proposes a **hypothesis**: a CSG tree of shapes + boolean
+ops **and sensible initial parameters** (center / size / rotation), authored in a
+normalised ~unit-cube space. That hypothesis is then **optimised** so its SDF
+matches a target derived from an observed object — the parameters refine from a
+plausible guess to a tight fit of the specific instance. The starting point is a
+meaningful hypothesis, **not** random initialisation.
 
 ![CSG fitting a point cloud](assets/fit_demo.gif)
 
@@ -34,6 +36,50 @@ hand-/LLM-authored CSG tree --> predicted SDF  ────────┘
 This repo owns: **CSG → SDF**, **point cloud → target SDF**, and the
 **optimisation loop**. The `RGB → point cloud` front-end and the LLM topology
 proposer live outside the repo.
+
+## How it works (intended workflow)
+
+1. **Hypothesis (LLM).** An LLM proposes a CSG tree — shapes, boolean ops, *and*
+   initial parameters — in a normalised ~[-1, 1] unit cube. This is just a JSON
+   file; see `examples/mug_init.json`. Good initial params matter: we optimise in
+   the normalised space, so a roughly-right guess converges far more reliably.
+2. **Observation.** The object's point cloud is normalised to the same scale.
+3. **Coarse alignment** *(TODO — not yet implemented)*. The hypothesis and the
+   observation have an unknown relative pose; a coarse alignment / pose estimate
+   would bring them into rough correspondence. Today this step is skipped and the
+   examples are authored already-aligned (`alignment.py` only has a *local*
+   similarity-ICP placeholder, which needs a good initial pose).
+4. **Target SDF.** Build a target SDF from the (aligned) observation
+   (`target.py`); or, with no external data, sample one from a known tree
+   (`synthetic.py`).
+5. **Optimise (this is the core).** Refine the hypothesis's continuous leaf
+   parameters to minimise the SDF loss (`optimize.py`). The **topology is fixed**;
+   only the parameters move.
+6. **Output.** A fitted CSG tree — compact, interpretable, editable — for
+   downstream use (grasping).
+
+The demo GIF above is exactly steps 1→5 with a synthetic instance: start from the
+abstract `mug_init.json` hypothesis (already coarsely aligned), optimise onto the
+`mug.json` instance.
+
+## Onboarding (new here? start with this)
+
+If you've never seen this project before:
+
+1. **Run the demo** (no data, no GPU needed) and watch it fit:
+   `python scripts/fit_demo.py --tree examples/mug.json --init_tree examples/mug_init.json --outdir demo_out`
+2. **Read in this order:** this README → `fitcsg/csg.py` (what a tree *is*) →
+   `fitcsg/primitives.py` (the shapes) → `fitcsg/optimize.py` (the fitting loop)
+   → `scripts/fit_demo.py` (how it's all wired together).
+3. **Mental model:** a "hypothesis" / "tree" is just a JSON CSG tree (see
+   `examples/`). `parse_tree` turns it into objects; `evaluate` gives its SDF;
+   `fit` moves its leaf params to match a target SDF.
+4. **Common tasks:** author a hypothesis → copy an `examples/*.json` and edit
+   params (schema under *Conventions*). Add a new primitive → write a canonical
+   SDF and register it in `PRIMITIVES` (`fitcsg/primitives.py`). Implement coarse
+   alignment → start from `fitcsg/alignment.py` and the hook in `target.py`.
+5. Every module has a top docstring explaining what it does and what's missing;
+   `TODO:` comments mark the open roadmap items in-place.
 
 ## Layout
 
@@ -74,8 +120,10 @@ pip install torch --index-url https://download.pytorch.org/whl/cpu   # or your C
 # Visualise a tree's SDF (no GPU)
 python scripts/visualize_tree.py --tree examples/mug.json --save mug.png
 
-# Self-contained fit (treat the tree as GT, randomise params, recover them)
-python scripts/fit.py --tree examples/mug.json --num_steps 1500 --restarts 4
+# Self-contained fit: optimise an abstract hypothesis onto a synthetic instance
+python scripts/fit.py --tree examples/mug.json --init_tree examples/mug_init.json
+# (omit --init_tree to instead randomise params and test recovery, with restarts)
+python scripts/fit.py --tree examples/mug.json --restarts 4
 
 # Animated GIF: an abstract mug hypothesis optimised onto the actual instance
 python scripts/fit_demo.py --tree examples/mug.json \
