@@ -37,6 +37,37 @@ This repo owns: **CSG → SDF**, **point cloud → target SDF**, and the
 **optimisation loop**. The `RGB → point cloud` front-end and the LLM topology
 proposer live outside the repo.
 
+## The idea / intuition
+
+Most everyday objects are well approximated by a few **simple analytic shapes**
+combined with boolean operations. Instead of a dense mesh or neural field, we
+describe an object as a small **CSG program** — a tree whose leaves are
+primitives (cylinder, box, sphere, …) and whose internal nodes are
+`union` / `intersection` / `subtraction`. Each primitive has an exact
+signed-distance function (SDF), and the boolean ops compose SDFs analytically, so
+the whole object has a differentiable SDF we can fit by gradient descent.
+
+This representation is **compact** (a handful of numbers), **interpretable**
+(you can read off "a hollow cylinder with a handle"), and **editable** (change a
+radius, move a part) — which is exactly what's useful for downstream grasping.
+
+**Worked example — a mug** (`examples/mug.json`, the demo target):
+
+```
+union(
+    subtraction(              # hollow body:
+        cylinder(body),       #   a solid outer cylinder
+        cylinder(cavity)      #   minus a slightly smaller inner cylinder -> the cup hole
+    ),
+    torus(handle)             # plus a torus for the handle
+)
+```
+
+The art is choosing *which* primitives and ops express an object (the topology),
+then letting optimisation dial in the exact parameters. An LLM is well suited to
+the first part ("a mug is a hollow cylinder with a ring handle"); optimisation
+handles the second.
+
 ## How it works (intended workflow)
 
 1. **Hypothesis (LLM).** An LLM proposes a CSG tree — shapes, boolean ops, *and*
@@ -61,6 +92,40 @@ proposer live outside the repo.
 The demo GIF above is exactly steps 1→5 with a synthetic instance: start from the
 abstract `mug_init.json` hypothesis (already coarsely aligned), optimise onto the
 `mug.json` instance.
+
+## Shape primitives
+
+All primitives share `center` (world origin) and `rotation` (XYZ Euler degrees);
+the shape-specific params are listed below. Defined in `fitcsg/primitives.py`;
+canonical frame is the origin, aligned to local **+Z** where an axis matters.
+
+| shape       | extra params          | good for / notes |
+|-------------|-----------------------|------------------|
+| `sphere`    | `radius`              | balls, blobs, rounded caps. Exact SDF. |
+| `ellipsoid` | `size` (3)            | squashed/elongated spheres (eggs, heads). *Approximate SDF* (no closed form). |
+| `box`       | `size` (3)            | cuboids, slabs, frames, table-tops. Exact SDF. |
+| `cylinder`  | `radius`, `height`    | cups, cans, tubes, legs, rods. Axis = +Z. Exact SDF. |
+| `cone`      | `radius`, `height`    | funnels, tips, tapers (apex at +Z). Exact capped-cone SDF. |
+| `torus`     | `radius` (major), `tube` (minor) | handles, rings, rims, donuts. Lies in the XY-plane. Exact SDF. |
+| `capsule`   | `radius`, `height`    | rounded rods / limbs / grips (a cylinder with hemispherical caps). Axis = +Z. Exact SDF. |
+
+Combine them with `union` (∪, `min`), `intersection` (∩, `max`) and
+`subtraction` (−, carve one out of another) — optionally with a `smooth` blend
+radius for soft joins.
+
+### Future primitives to consider
+
+Useful additions for covering more everyday objects (each is a small canonical
+SDF + a one-line registry entry in `PRIMITIVES`):
+
+* **rounded box** — boxes with filleted edges (most manufactured objects);
+* **capped / partial torus** — a handle arc rather than a full ring;
+* **n-gon prism / wedge** — hex bolts, pyramids, ramps, triangular cross-sections;
+* **half-space / plane** — slice a shape flat (table cuts, flat bases);
+* **rounded cylinder** — cans/bottles with rounded top edges;
+* **superquadric / superellipsoid** — one shape that smoothly interpolates
+  box↔sphere↔cylinder via 2 exponents (very expressive for organic + manufactured
+  parts; a strong candidate if you want fewer leaves per object).
 
 ## Onboarding (new here? start with this)
 
