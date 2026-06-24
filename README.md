@@ -21,21 +21,30 @@ random — and the parameters refine to match the specific object.*
 
 > **Status.** This was research code that was buggy and partly faked-to-work; it
 > was rebuilt in June 2026 into a clean, *correct* implementation of the idea
-> (`fitcsg/` package + tests). It runs CPU-only; a GPU just speeds up fitting.
-> The synthetic demo is fully reproducible; the real-data path is implemented
-> but untested (no captured data is currently available — see TODOs).
+> (`fitcsg/` package + tests), and the LLM hypothesis generator (previously on a
+> separate branch) was merged in and wired up. It runs CPU-only; a GPU just
+> speeds up fitting. The synthetic demo and the generate→fit flow (with cached
+> hypotheses) are reproducible; the live LLM call and the real-data path are
+> implemented but unexercised here (no API key / captured data — see TODOs).
 
 ## Pipeline
 
 ```
-RGB image --(external)--> point cloud --> target SDF  ─┐
-                                                       ├─> optimise CSG leaf params  (this repo)
-hand-/LLM-authored CSG tree --> predicted SDF  ────────┘
+object name --> LLM --> CSG hypothesis (tree + init params)  ─┐   llmhypothesis/
+                                                              ├─> optimise CSG leaf params ─> fitted tree ─> part segmentation
+RGB image --(external)--> point cloud --> target SDF  ────────┘   fitcsg/
 ```
 
-This repo owns: **CSG → SDF**, **point cloud → target SDF**, and the
-**optimisation loop**. The `RGB → point cloud` front-end and the LLM topology
-proposer live outside the repo.
+This repo owns the whole loop end-to-end:
+
+* **LLM hypothesis generation** (`llmhypothesis/`) — object name → CSG tree +
+  initial parameters, via TypeChat + a TypeScript schema;
+* **CSG → SDF**, **point cloud → target SDF**, the **optimisation loop**, and
+  **part segmentation** (`fitcsg/`).
+
+Only the `RGB → point cloud` front-end (depth back-projection / reconstruction)
+lives outside the repo. See [`llmhypothesis/README.md`](llmhypothesis/README.md)
+for the generator and [its setup](#llm-hypothesis-generation) below.
 
 ## The idea / intuition
 
@@ -71,9 +80,12 @@ handles the second.
 ## How it works (intended workflow)
 
 1. **Hypothesis (LLM).** An LLM proposes a CSG tree — shapes, boolean ops, *and*
-   initial parameters — in a normalised ~[-1, 1] unit cube. This is just a JSON
-   file; see `examples/mug_init.json`. Good initial params matter: we optimise in
-   the normalised space, so a roughly-right guess converges far more reliably.
+   initial parameters — in a normalised ~[-1, 1] unit cube. This is implemented
+   in [`llmhypothesis/`](llmhypothesis/) (`python generate.py --object mug`) and
+   emits a JSON file; cached examples live in `llmhypothesis/csg_hypotheses/` and
+   a hand-authored one in `examples/mug_init.json`. Good initial params matter:
+   we optimise in the normalised space, so a roughly-right guess converges far
+   more reliably. `fitcsg.parse_tree` loads the generator's schema directly.
 2. **Observation.** The object's point cloud is normalised to the same scale.
 3. **Coarse alignment** *(TODO — not yet implemented)*. The hypothesis and the
    observation have an unknown relative pose; a coarse alignment / pose estimate
@@ -85,9 +97,12 @@ handles the second.
    (`synthetic.py`).
 5. **Optimise (this is the core).** Refine the hypothesis's continuous leaf
    parameters to minimise the SDF loss (`optimize.py`). The **topology is fixed**;
-   only the parameters move.
-6. **Output.** A fitted CSG tree — compact, interpretable, editable — for
-   downstream use (grasping).
+   only the parameters move. Two options keep this anchored to the meaningful
+   hypothesis: `reg_weight` (an L2 pull back toward the initial params) and
+   `coarse_to_fine` (place part *centers* first, then unfreeze all params).
+6. **Output + part segmentation.** A fitted CSG tree — compact, interpretable,
+   editable. `fitcsg.segment_point_cloud` then labels each observed point by the
+   fitted part it belongs to (body vs. handle vs. …) for downstream grasping.
 
 The demo GIF above is exactly steps 1→5 with a synthetic instance: start from the
 abstract `mug_init.json` hypothesis (already coarsely aligned), optimise onto the
@@ -157,13 +172,20 @@ fitcsg/
   alignment.py    similarity ICP (point-cloud alignment)
   target.py       masked point cloud -> target SDF supervision
   synthetic.py    sample a target SDF from a known tree (no external data)
-  optimize.py     fitting loop: truncated-Huber loss, cosine LR, random restarts
+  optimize.py     fitting loop: truncated-Huber loss, cosine LR, restarts, init-reg, coarse->fine
+  segment.py      label observed points by fitted CSG part (for grasping)
   visualize.py    Graphviz tree + matplotlib SDF/fit rendering + GIF assembly
   random_tree.py  random tree generation (smoke tests)
 scripts/
   visualize_tree.py   render a tree's graph and/or SDF
   fit.py              fit a tree to a synthetic or real target
   fit_demo.py         animated fit -> GIF (the visual smoke test)
+llmhypothesis/        LLM CSG-hypothesis generator (TypeChat + TS schema); see its README
+  generate.py         object name -> CSG hypothesis JSON
+  csgschema.ts        the generator-side schema (ingested by fitcsg.parse_tree)
+  prompt.md           the generation prompt
+  csg_hypotheses/     cached example hypotheses (mug, knife, screwdriver, ...)
+  TypeChat/           git submodule (run: git submodule update --init --recursive)
 examples/
   sunglasses.json     original hand-authored example (converted to new schema)
   mug.json            demo *instance*: cylinder - cavity + torus handle
@@ -177,7 +199,15 @@ tests/                pytest suite (run: pytest)
 conda env create -f environment.yml
 conda activate fitcsg
 pip install torch --index-url https://download.pytorch.org/whl/cpu   # or your CUDA build
+
+# only needed to *generate* new hypotheses with the LLM (not for fitting):
+git submodule update --init --recursive    # pulls llmhypothesis/TypeChat
 ```
+
+Fitting and the demo need only `torch`/`numpy`/`matplotlib` (the `fitcsg/`
+package). The LLM generator additionally needs the TypeChat submodule, a
+TypeScript compiler, and an API key — see
+[LLM hypothesis generation](#llm-hypothesis-generation).
 
 ## Quickstart
 
@@ -189,6 +219,15 @@ python scripts/visualize_tree.py --tree examples/mug.json --save mug.png
 python scripts/fit.py --tree examples/mug.json --init_tree examples/mug_init.json
 # (omit --init_tree to instead randomise params and test recovery, with restarts)
 python scripts/fit.py --tree examples/mug.json --restarts 4
+
+# Fit an actual cached LLM hypothesis (loads the generator schema directly),
+# anchored to the proposal via init-regularisation + coarse-to-fine
+python scripts/fit.py --tree examples/mug.json \
+    --init_tree llmhypothesis/csg_hypotheses/csg_mug_1.json \
+    --reg_weight 1e-3 --coarse_to_fine
+
+# Generate a fresh hypothesis with the LLM (needs submodule + API key)
+python llmhypothesis/generate.py --object mug
 
 # Animated GIF: an abstract mug hypothesis optimised onto the actual instance
 python scripts/fit_demo.py --tree examples/mug.json \
@@ -204,7 +243,7 @@ pytest
 
 ## Tests
 
-`pytest` (15 tests) covers the correctness claims above so the next person can
+`pytest` (20 tests) covers the correctness claims above so the next person can
 refactor safely:
 
 * `test_transforms.py` — rotation matrices are orthonormal with `det=1`;
@@ -213,9 +252,41 @@ refactor safely:
   non-empty solid and reports far points as outside; box rotation-equivariance;
   size-sign invariance.
 * `test_csg.py` — union/intersection/subtraction signs; overlapping-sphere
-  volumes; JSON round-trip; legacy-schema loading; colour output shape.
-* `test_optimize.py` — the synthetic fit reduces loss by >2× and converges.
+  volumes; JSON round-trip; **LLM schema loading** (`Prism`→box, `part`→name,
+  `axis` direction → Euler `rotation`); colour output shape.
+* `test_optimize.py` — the synthetic fit reduces loss by >2× and converges; the
+  **coarse-to-fine + init-regularisation** path runs and limits drift.
+* `test_segment.py` — every observed point gets one part label and the parts are
+  populated.
 * `test_random_tree.py` — random trees parse and yield a non-empty solid.
+
+## LLM hypothesis generation
+
+The front of the pipeline lives in [`llmhypothesis/`](llmhypothesis/) and turns
+an object name into a CSG tree (shapes + initial params) using
+[TypeChat](https://github.com/microsoft/TypeChat) to constrain the LLM to the
+`csgschema.ts` schema. Full instructions are in
+[`llmhypothesis/README.md`](llmhypothesis/README.md); in short:
+
+```bash
+git submodule update --init --recursive    # TypeChat
+export OPENAI_API_KEY=sk-...
+python llmhypothesis/generate.py --object mug          # -> llmhypothesis/csg_hypotheses/csg_mug_1.json
+python scripts/fit.py --tree examples/mug.json \
+    --init_tree llmhypothesis/csg_hypotheses/csg_mug_1.json --reg_weight 1e-3 --coarse_to_fine
+```
+
+The generator emits the *legacy* schema (`operation`/`type`/`sizes`/`axis`/
+`part`); `fitcsg.parse_tree` maps it to the canonical schema automatically
+(`Prism`→`box`, `type` suffix stripped, `part`→`name`, `axis` direction →
+Euler `rotation`). Cached hypotheses ship in `llmhypothesis/csg_hypotheses/`, so
+the generate→fit flow can be exercised end-to-end without an API key by using
+those files as `--init_tree`.
+
+> The generator was developed on a separate branch; it has been merged here and
+> wired up (schema ingestion + CLI + docs). The fit side is fully tested; the
+> live LLM call itself requires the submodule, a TypeScript compiler and an API
+> key, so it has not been re-run in this environment.
 
 ## Conventions
 
@@ -230,8 +301,10 @@ refactor safely:
 * **Positivity.** Sizes/radii are passed through `abs()` inside the SDF, so the
   optimiser is unconstrained and cannot invert a shape.
 * **JSON schema.** `{"op", "left", "right", "smooth"?}` for internal nodes and
-  `{"shape", "name", "params": {...}}` for leaves. Legacy keys
-  (`operation`/`type`/`sizes`/`axis`) still load.
+  `{"shape", "name", "params": {...}}` for leaves. The legacy / LLM schema
+  (`operation`/`type`/`sizes`/`axis`/`part`) also loads: `Prism`→`box`, `type`
+  suffix stripped, `part`→`name`, and the `axis` direction is converted to the
+  canonical Euler `rotation` for axis-aligned shapes.
 
 ## What the rebuild fixed
 
@@ -241,6 +314,13 @@ the SDFs read (the shipped example would have crashed); `random_tree_utils.py`
 couldn't import; leaf lookup broke for ≥10 instances of a shape; viz colours
 were non-deterministic. All fixed, plus a robust loss, restarts, more primitives
 (torus/capsule), and a test suite.
+
+The rebuild also **consolidated the divergent branches** into one `main`: the
+LLM hypothesis generator from the `llmhypothesis` branch was merged in (history
+preserved), and that branch's still-valuable research intentions were ported
+into the package rather than left on dead code — init-parameter regularisation
+and coarse-to-fine optimisation (`optimize.py`), and post-fit part segmentation
+(`segment.py`).
 
 ## Known limitations & flags
 
@@ -281,8 +361,12 @@ These are the substantial pieces left for the resubmission, roughly in order:
 4. **Cluttered scenes + language grounding.** Identify and segment the target
    object in a cluttered scene, optionally via a **language prompt**, before
    fitting (extension).
-5. **Topology from an LLM.** Have an LLM propose the tree topology *and* sensible
-   normalised initial parameters (we optimise in a normalised space).
+5. **Topology from an LLM** *(implemented — see `llmhypothesis/`)*. An LLM
+   proposes the tree topology *and* normalised initial parameters; the output
+   feeds straight into `--init_tree`. Remaining work: validate hypothesis quality
+   at scale, constrain/standardise the proposed pose to help coarse alignment
+   (#3), and optionally migrate the generator to emit the canonical schema
+   directly instead of relying on the parser's legacy mapping.
 6. **Engineering.** Parallelise restarts (currently sequential), try
    second-order optimisers (LBFGS / Levenberg–Marquardt), and add mesh
    (marching-cubes) export for nicer visuals.
