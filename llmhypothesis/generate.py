@@ -1,52 +1,101 @@
-from TypeChat.typechat.typechat import TypeChat
+"""Generate a CSG-tree hypothesis for an object with an LLM.
+
+This is the *front* of the pipeline: given an object name (e.g. ``mug``), an LLM
+proposes a Constructive-Solid-Geometry tree -- shapes **and** plausible initial
+parameters in a roughly unit-cube space -- constrained by ``csgschema.ts`` (via
+TypeChat) and ``prompt.md``.
+
+The resulting JSON is consumed directly by the fitting half of the repo::
+
+    python scripts/fit.py --tree <target>.json \
+        --init_tree llmhypothesis/csg_hypotheses/csg_<object>_1.json \
+        --reg_weight 1e-3 --coarse_to_fine
+
+``fitcsg.parse_tree`` ingests this (legacy) schema natively -- ``Prism`` maps to
+``box``, the numeric ``type`` suffix is stripped, ``part`` becomes the leaf name,
+and the ``axis`` direction is converted to the canonical Euler ``rotation``.
+
+Setup (see README.md): initialise the TypeChat submodule, install its deps + a
+TypeScript compiler, and provide an API key via ``--api_key`` or the
+``OPENAI_API_KEY`` environment variable.
+"""
+
+import argparse
 import json
+import os
 
-def generateTree(tns, object, hypothesis=None):
-    # Load the prompt from the prompt.md file
-    prompt = None
-    with open("prompt.md", "r") as f:
+from TypeChat.typechat.typechat import TypeChat
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+
+
+def generate_tree(tns, object_name, prompt_path, out_path, hypothesis=None):
+    """Translate one prompt into a schema-valid CSG JSON and save it."""
+    with open(prompt_path) as f:
         prompt = f.read()
+    prompt = prompt.replace("<ObjectName>", object_name)
 
-    ## Replace the $$$ with the actual object name
-    prompt = prompt.replace("<ObjectName>", object)
-
-    request = [
-        {"role": "user", "content": prompt}
-    ]
+    request = [{"role": "user", "content": prompt}]
     if hypothesis:
         request.append({"role": "assistant", "content": hypothesis})
-        request.append({"role": "user", "content": f"Real world objects have diverse instances. Can you please generate another tree represents a geometrically different instance the {object} object?"})
+        request.append(
+            {
+                "role": "user",
+                "content": (
+                    "Real world objects have diverse instances. Please generate "
+                    f"another tree representing a geometrically different instance "
+                    f"of the {object_name} object."
+                ),
+            }
+        )
 
-    response = tns.translate(request, image=None, return_query=False)   
-    if response.success:
-        csg = json.loads(str(response.data).replace("'", "\""))
-        fn = f"csg_{object}_1.json" if not hypothesis else f"csg_{object}_2.json"
-        with open(fn, "w") as f:
-            f.write(json.dumps(csg, indent=4))
-        return json.dumps(csg, indent=4)
-    else:
+    response = tns.translate(request, image=None, return_query=False)
+    if not response.success:
         print(response.error)
+        return None
+
+    csg = json.loads(str(response.data).replace("'", '"'))
+    with open(out_path, "w") as f:
+        f.write(json.dumps(csg, indent=4))
+    print(f"wrote {out_path}")
+    return json.dumps(csg, indent=4)
+
 
 def main():
-    # Setup Typechat
+    parser = argparse.ArgumentParser(description="Generate CSG hypotheses with an LLM")
+    parser.add_argument("--object", required=True, help="object name, e.g. 'mug'")
+    parser.add_argument("--model", default="gpt-4o", help="gpt-4o is cheap; o1-preview is stronger but pricey")
+    parser.add_argument("--num_variants", type=int, default=1, help="how many distinct instances to generate")
+    parser.add_argument("--outdir", default=os.path.join(HERE, "csg_hypotheses"))
+    parser.add_argument("--api_key", default=os.environ.get("OPENAI_API_KEY", ""))
+    parser.add_argument("--prompt", default=os.path.join(HERE, "prompt.md"))
+    parser.add_argument("--schema", default=os.path.join(HERE, "csgschema.ts"))
+    args = parser.parse_args()
+
+    if not args.api_key:
+        parser.error("no API key: pass --api_key or set OPENAI_API_KEY")
+    os.makedirs(args.outdir, exist_ok=True)
+
     ts = TypeChat()
     ts.createLanguageModel(
-        # model="gpt-4o", 
-        model="o1-preview", 
-        api_key="", 
+        model=args.model,
+        api_key=args.api_key,
         org_key=None,
         use_json_mode=True,
         user_mode_only=True,
-        # base_url = 'http://localhost:23100/v1',
-        # model = "llama3.1:70b-instruct-fp16",
     )
-    ts.loadSchema("./csgschema.ts")
-    tns = ts.createJsonTranslator(name="CSGResponse", basedir="./TypeChat/typechat/schemas")
+    ts.loadSchema(args.schema)
+    tns = ts.createJsonTranslator(
+        name="CSGResponse", basedir=os.path.join(HERE, "TypeChat", "typechat", "schemas")
+    )
 
-    # Query the model
-    object_name = "wire_cutters"
-    answer_1 = generateTree(tns, object=object_name)
-    answer_2 = generateTree(tns, object=object_name, hypothesis=answer_1)
+    previous = None
+    for variant in range(1, args.num_variants + 1):
+        out_path = os.path.join(args.outdir, f"csg_{args.object}_{variant}.json")
+        previous = generate_tree(tns, args.object, args.prompt, out_path, hypothesis=previous)
+        if previous is None:
+            break
+
 
 if __name__ == "__main__":
     main()

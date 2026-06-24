@@ -23,6 +23,10 @@ Two target sources are supported:
 Examples:
     # realistic: abstract hypothesis -> synthetic instance
     python scripts/fit.py --tree examples/mug.json --init_tree examples/mug_init.json
+    # fit an actual LLM-generated hypothesis (legacy schema loads directly)
+    python scripts/fit.py --tree examples/mug.json \
+        --init_tree llmhypothesis/csg_hypotheses/csg_mug_1.json \
+        --reg_weight 1e-3 --coarse_to_fine
     # recovery sanity check: randomise and recover
     python scripts/fit.py --tree examples/mug.json --restarts 4
 """
@@ -57,6 +61,18 @@ def main():
     parser.add_argument("--num_steps", type=int, default=1500)
     parser.add_argument("--restarts", type=int, default=1)
     parser.add_argument("--truncation", type=float, default=0.1)
+    parser.add_argument(
+        "--reg_weight",
+        type=float,
+        default=0.0,
+        help="L2 pull back toward the initial hypothesis params (keeps the fit "
+        "near the LLM proposal); 0 disables it",
+    )
+    parser.add_argument(
+        "--coarse_to_fine",
+        action="store_true",
+        help="optimise part centers first, then unfreeze all params",
+    )
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--out", default="fitted_tree.json", help="where to save the fitted tree")
     args = parser.parse_args()
@@ -86,6 +102,8 @@ def main():
         lr=args.lr,
         num_steps=args.num_steps,
         truncation=args.truncation,
+        reg_weight=args.reg_weight,
+        coarse_to_fine=args.coarse_to_fine,
         device=args.device,
     )
     if args.restarts > 1:

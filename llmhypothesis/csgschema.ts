@@ -1,3 +1,16 @@
+// Schema that TypeChat enforces on the LLM's CSG-tree output.
+//
+// NOTE ON CONSISTENCY: this is the *generator-side* schema. The fitting half of
+// the repo (fitcsg.parse_tree) ingests it directly and maps it to its canonical
+// internal schema:
+//   - "Prism"  -> "box"
+//   - type suffix ("Cylinder0") is stripped to the shape name
+//   - "part"   -> the leaf's name
+//   - "axis" (a direction) -> a canonical Euler "rotation" (degrees), applied to
+//     axis-aligned shapes (Cylinder/Cone) and ignored where it was meaningless.
+// Keep the two in sync: if you add a shape here, register it in
+// fitcsg/primitives.py and the alias tables in fitcsg/csg.py.
+//
 // Main export type that represents the CSG tree structure.
 // It can either be a boolean operation (CSGOperation) or a basic geometric shape (CSGShape).
 export type CSGResponse = CSGOperation | CSGShape;
