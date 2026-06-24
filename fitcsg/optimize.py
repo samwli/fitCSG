@@ -125,6 +125,8 @@ def fit(
         loss = _loss(pred, target_values, truncation)
         total = loss
         if reg_weight > 0:
+            # Pull params back toward the (meaningful) starting hypothesis so the
+            # fit refines it rather than drifting to a degenerate low-loss state.
             reg = sum(F.mse_loss(p, p0) for p, p0 in zip(params, initial))
             total = total + reg_weight * reg
         total.backward()

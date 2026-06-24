@@ -87,11 +87,16 @@ handles the second.
    we optimise in the normalised space, so a roughly-right guess converges far
    more reliably. `fitcsg.parse_tree` loads the generator's schema directly.
 2. **Observation.** The object's point cloud is normalised to the same scale.
-3. **Coarse alignment** *(TODO — not yet implemented)*. The hypothesis and the
-   observation have an unknown relative pose; a coarse alignment / pose estimate
-   would bring them into rough correspondence. Today this step is skipped and the
-   examples are authored already-aligned (`alignment.py` only has a *local*
-   similarity-ICP placeholder, which needs a good initial pose).
+3. **Coarse alignment** *(partly assumed — the main open TODO)*. "Coarse
+   alignment" = recovering the **relative pose** between the hypothesis and the
+   observed object so they roughly overlap before refinement. We now know the
+   *hypothesis* pose (the LLM is prompted to emit a canonical, upright,
+   axis-aligned shape — see `llmhypothesis/prompt.md`), so only the *object's*
+   pose is unknown. Today that object pose is **assumed canonical** (the original
+   pipeline hardcoded a fixed camera→table transform and estimated only
+   centroid+scale); `alignment.py` additionally offers a *local* similarity-ICP,
+   but it needs a good initial pose and diverges under large offsets. A real
+   object-pose estimator is roadmap item #3.
 4. **Target SDF.** Build a target SDF from the (aligned) observation
    (`target.py`); or, with no external data, sample one from a known tree
    (`synthetic.py`).

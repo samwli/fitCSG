@@ -63,6 +63,8 @@ def main():
     parser.add_argument("--num_target_points", type=int, default=8000)
     parser.add_argument("--optimizer", default="adam")
     parser.add_argument("--lr", type=float, default=1e-2)
+    parser.add_argument("--reg_weight", type=float, default=0.0, help="pull toward the initial hypothesis params")
+    parser.add_argument("--coarse_to_fine", action="store_true", help="optimise centers first, then all params")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--outdir", default="demo_out")
@@ -111,6 +113,8 @@ def main():
         optimizer=args.optimizer,
         lr=args.lr,
         num_steps=args.num_steps,
+        reg_weight=args.reg_weight,
+        coarse_to_fine=args.coarse_to_fine,
         device=args.device,
         log_every=args.frame_every,
         step_callback=callback,

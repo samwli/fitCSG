@@ -5,6 +5,7 @@ You are tasked with creating a 3D representation of an object (e.g., `<ObjectNam
 
 ## Constraints:
 - **Bounding Box**: The entire object must fit within a 1x1x1 bounding box, centered at the origin. All dimensions (positions, sizes, radii, heights) must remain within this range.
+- **Canonical Pose**: Place the object in a canonical, upright, axis-aligned pose centered at the origin: its main/longest axis along **+Z**, and any natural "front" facing **+X**. Use simple axis vectors (e.g. `[0,0,1]`) wherever possible. This gives the hypothesis a known orientation, which the downstream fitter relies on for coarse alignment to the observed object.
 - **Minimize Complexity**: Use the fewest possible shapes and operations to capture the object's main geometry and semantics. Simplify wherever possible while maintaining visual coherence.
 - **Focus on Critical Components**: Include primary geometric and semantic parts of the object that contribute to its overall design or interaction. For example, the sunglasses can be minimally representated by its two lenses and temples (legs).
 -**Avoid Unnecessary Granularity**: Small and ornamental details, such as edges and tips, should generally be ignored or merged into broader parts unless they are critical to the object’s characterization. The sunglasses bridge or nodepads, for example, should not be included. A good rule of thumb is to omit parts that are too small to grasp.

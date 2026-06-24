@@ -23,10 +23,30 @@ TypeScript compiler, and provide an API key via ``--api_key`` or the
 import argparse
 import json
 import os
-
-from TypeChat.typechat.typechat import TypeChat
+import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+
+
+def _import_typechat():
+    """Import TypeChat lazily with a helpful message if the submodule is missing.
+
+    Keeping this out of module scope means ``--help`` and argument validation
+    work even before the submodule / its dependencies are installed; only the
+    actual generation needs TypeChat.
+    """
+    sys.path.insert(0, HERE)
+    try:
+        from TypeChat.typechat.typechat import TypeChat
+    except ImportError as exc:
+        raise SystemExit(
+            "Could not import TypeChat. Initialise the submodule and install its "
+            "dependencies first:\n"
+            "    git submodule update --init --recursive\n"
+            "    pip install -r llmhypothesis/TypeChat/requirements.txt  # see TypeChat docs\n"
+            f"(original error: {exc})"
+        )
+    return TypeChat
 
 
 def generate_tree(tns, object_name, prompt_path, out_path, hypothesis=None):
@@ -76,6 +96,7 @@ def main():
         parser.error("no API key: pass --api_key or set OPENAI_API_KEY")
     os.makedirs(args.outdir, exist_ok=True)
 
+    TypeChat = _import_typechat()
     ts = TypeChat()
     ts.createLanguageModel(
         model=args.model,
