@@ -1,0 +1,54 @@
+{
+    "operation": "Union",
+    "left": {
+        "operation": "Union",
+        "left": {
+            "type": "Sphere0",
+            "params": {
+                "center": [
+                    0,
+                    0,
+                    0.3
+                ],
+                "radius": 0.2
+            },
+            "part": "Handle"
+        },
+        "right": {
+            "type": "Cylinder1",
+            "params": {
+                "center": [
+                    0,
+                    0,
+                    0
+                ],
+                "radius": 0.05,
+                "height": 0.6,
+                "rotation": [
+                    0,
+                    0,
+                    0
+                ]
+            },
+            "part": "Shaft"
+        }
+    },
+    "right": {
+        "type": "Cone2",
+        "params": {
+            "center": [
+                0,
+                0,
+                -0.4
+            ],
+            "radius": 0.05,
+            "height": 0.2,
+            "rotation": [
+                0,
+                0,
+                0
+            ]
+        },
+        "part": "Tip"
+    }
+}

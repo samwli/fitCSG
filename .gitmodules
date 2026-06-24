@@ -1,0 +1,3 @@
+[submodule "llmhypothesis/TypeChat"]
+	path = llmhypothesis/TypeChat
+	url = git@github.com:sstepput/TypeChat.git

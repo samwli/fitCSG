@@ -1,0 +1,66 @@
+{
+    "operation": "Union",
+    "left": {
+        "operation": "Subtraction",
+        "left": {
+            "type": "Prism0",
+            "params": {
+                "center": [
+                    0,
+                    0,
+                    0
+                ],
+                "sizes": [
+                    0.8,
+                    0.8,
+                    0.6
+                ],
+                "rotation": [
+                    0,
+                    0,
+                    0
+                ]
+            },
+            "part": "Body"
+        },
+        "right": {
+            "type": "Prism1",
+            "params": {
+                "center": [
+                    0,
+                    0,
+                    0
+                ],
+                "sizes": [
+                    0.7,
+                    0.7,
+                    0.58
+                ],
+                "rotation": [
+                    0,
+                    0,
+                    0
+                ]
+            },
+            "part": "InnerCavity"
+        }
+    },
+    "right": {
+        "type": "Cylinder2",
+        "params": {
+            "center": [
+                0.4,
+                0,
+                0.1
+            ],
+            "radius": 0.05,
+            "height": 0.4,
+            "rotation": [
+                0,
+                0,
+                90
+            ]
+        },
+        "part": "Handle"
+    }
+}

@@ -1,0 +1,39 @@
+{
+    "operation": "Union",
+    "left": {
+        "type": "Cone0",
+        "params": {
+            "center": [
+                0.15,
+                0,
+                0
+            ],
+            "radius": 0.02,
+            "height": 0.6,
+            "axis": [
+                1,
+                0,
+                0
+            ]
+        },
+        "part": "Blade"
+    },
+    "right": {
+        "type": "Cylinder1",
+        "params": {
+            "center": [
+                -0.2,
+                0,
+                0
+            ],
+            "radius": 0.03,
+            "height": 0.4,
+            "axis": [
+                1,
+                0,
+                0
+            ]
+        },
+        "part": "Handle"
+    }
+}

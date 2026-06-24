@@ -1,0 +1,81 @@
+{
+    "operation": "Union",
+    "left": {
+        "operation": "Union",
+        "left": {
+            "type": "Cylinder0",
+            "params": {
+                "center": [
+                    -0.1,
+                    0,
+                    0
+                ],
+                "radius": 0.05,
+                "height": 0.7,
+                "axis": [
+                    0.7071,
+                    0,
+                    0.7071
+                ]
+            },
+            "part": "LeftHandle"
+        },
+        "right": {
+            "type": "Cone0",
+            "params": {
+                "center": [
+                    -0.2,
+                    0,
+                    0.2
+                ],
+                "radius": 0.05,
+                "height": 0.2,
+                "axis": [
+                    0.7071,
+                    0,
+                    -0.7071
+                ]
+            },
+            "part": "LeftBlade"
+        }
+    },
+    "right": {
+        "operation": "Union",
+        "left": {
+            "type": "Cylinder1",
+            "params": {
+                "center": [
+                    0.1,
+                    0,
+                    0
+                ],
+                "radius": 0.05,
+                "height": 0.7,
+                "axis": [
+                    -0.7071,
+                    0,
+                    0.7071
+                ]
+            },
+            "part": "RightHandle"
+        },
+        "right": {
+            "type": "Cone1",
+            "params": {
+                "center": [
+                    0.2,
+                    0,
+                    0.2
+                ],
+                "radius": 0.05,
+                "height": 0.2,
+                "axis": [
+                    -0.7071,
+                    0,
+                    -0.7071
+                ]
+            },
+            "part": "RightBlade"
+        }
+    }
+}
