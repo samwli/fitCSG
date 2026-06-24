@@ -34,6 +34,7 @@ import torch
 from torch import Tensor
 
 from .primitives import get_primitive
+from .transforms import axis_to_euler_deg
 
 # Stable, distinguishable colours used purely for visualisation.
 PALETTE: List[Tuple[float, float, float]] = [
@@ -47,8 +48,15 @@ PALETTE: List[Tuple[float, float, float]] = [
     (0.55, 0.34, 0.29),  # brown
 ]
 
-_LEGACY_OPS = {"union": "union", "intersection": "intersection", "subtraction": "subtraction"}
-_LEGACY_PARAM_ALIASES = {"sizes": "size", "axis": "rotation"}
+# Legacy / LLM leaf "type" names -> canonical primitive names. The numeric
+# suffix (e.g. "Cylinder0") is stripped before this lookup.
+_SHAPE_ALIASES = {"prism": "box", "cuboid": "box", "rectangularprism": "box"}
+# Legacy param key -> canonical param key (``axis`` is handled separately
+# because it is a direction vector, not an Euler rotation).
+_LEGACY_PARAM_ALIASES = {"sizes": "size"}
+# Shapes for which a legacy ``axis`` direction is meaningful and should be
+# turned into a ``rotation``; for everything else ``axis`` is ignored.
+_AXIS_SHAPES = {"cylinder", "cone", "capsule"}
 
 
 def _to_tensor(value, dtype=torch.float32) -> Tensor:
@@ -85,28 +93,57 @@ Node = Union[Leaf, Op]
 # --------------------------------------------------------------------------- #
 # Parsing
 # --------------------------------------------------------------------------- #
-def _normalise_params(raw: Dict) -> Dict[str, Tensor]:
+def _canonical_shape(data: Dict) -> str:
+    """Resolve the canonical primitive name from a leaf dict.
+
+    Accepts the canonical ``shape`` key or the legacy ``type`` (``"Cylinder0"``)
+    and applies the alias table (``Prism`` -> ``box``).
+    """
+    raw = data["shape"] if "shape" in data else data["type"].rstrip("0123456789")
+    raw = raw.lower()
+    return _SHAPE_ALIASES.get(raw, raw)
+
+
+def _normalise_params(raw: Dict, shape: str) -> Dict[str, Tensor]:
+    """Convert a raw param dict (canonical *or* legacy) to canonical tensors.
+
+    * ``sizes`` -> ``size``.
+    * legacy ``axis`` (a direction vector) -> ``rotation`` (Euler degrees) for
+      axis-aligned shapes, and is dropped for the rest where it was meaningless.
+    * a missing ``rotation`` defaults to no rotation.
+    """
     params: Dict[str, Tensor] = {}
+    axis = None
     for key, value in raw.items():
-        key = _LEGACY_PARAM_ALIASES.get(key, key)
-        params[key] = _to_tensor(value)
+        if key == "axis":
+            axis = value
+            continue
+        params[_LEGACY_PARAM_ALIASES.get(key, key)] = _to_tensor(value)
+
+    if "rotation" not in params:
+        if axis is not None and shape in _AXIS_SHAPES:
+            params["rotation"] = axis_to_euler_deg(axis)
+        else:
+            params["rotation"] = torch.zeros(3)
+    if "center" not in params:
+        params["center"] = torch.zeros(3)
     return params
 
 
 def _parse_node(data: Dict, counter: Dict[str, int]) -> Node:
     is_leaf = "shape" in data or "type" in data
     if is_leaf:
-        # Legacy "type" looked like "Ellipsoid0"; strip a trailing index and
-        # lowercase to get the shape name.
-        if "shape" in data:
-            shape = data["shape"].lower()
-        else:
-            shape = data["type"].rstrip("0123456789").lower()
+        shape = _canonical_shape(data)
         idx = counter.get(shape, 0)
         counter[shape] = idx + 1
-        name = data.get("name") or data.get("type") or f"{shape}_{idx}"
-        params = _normalise_params(data["params"])
-        color = PALETTE[(idx + sum(counter.values())) % len(PALETTE)]
+        # Prefer an explicit name, then the legacy semantic "part" label
+        # (e.g. "Handle"), then the raw type, then a generated fallback.
+        name = data.get("name") or data.get("part") or data.get("type") or f"{shape}_{idx}"
+        params = _normalise_params(data["params"], shape)
+        # Unique colour per leaf (global leaf order), so colours never collide --
+        # this matters for colour-based part segmentation (see fitcsg.segment).
+        global_idx = sum(counter.values()) - 1
+        color = PALETTE[global_idx % len(PALETTE)]
         return Leaf(name=name, shape=shape, params=params, color=color)
 
     op = (data.get("op") or data["operation"]).lower()

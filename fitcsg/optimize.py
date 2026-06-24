@@ -9,7 +9,15 @@ Improvements over the original ``fit_csg.py``:
 * **multiple random restarts**, keeping the best result (the optimisation is
   highly non-convex, so this matters a lot in practice);
 * positivity of size/radius is handled inside the primitives (``abs``), so the
-  optimiser is unconstrained and can use any of the supported optimisers.
+  optimiser is unconstrained and can use any of the supported optimisers;
+* **regularisation toward the initial hypothesis** (``reg_weight``): because the
+  LLM proposes a *meaningful* abstract shape, we can penalise drifting far from
+  it. This was ``reg_beta`` in the original research code and keeps the fit from
+  collapsing into a degenerate but low-loss configuration;
+* an optional **coarse-to-fine** schedule (``coarse_to_fine``): first move only
+  the part *centers* (place the pieces), then unfreeze every parameter to refine
+  sizes/rotations. This mirrors the two-phase ``all_params`` trick from the
+  original code and is far more stable than optimising everything at once.
 
 The tree topology is fixed; only the continuous leaf parameters move.
 """
@@ -78,16 +86,35 @@ def fit(
     lr: Optional[float] = None,
     num_steps: int = 2000,
     truncation: Optional[float] = 0.1,
+    reg_weight: float = 0.0,
+    coarse_to_fine: bool = False,
+    coarse_frac: float = 0.5,
     device="cpu",
     log_every: int = 200,
     step_callback: Optional[Callable[[int, Node, float], None]] = None,
     verbose: bool = True,
 ) -> FitResult:
-    """Optimise a single tree against ``(target_points, target_values)``."""
+    """Optimise a single tree against ``(target_points, target_values)``.
+
+    Args:
+        reg_weight: strength of the L2 pull back toward the *initial* parameter
+            values (the hypothesis we started from). ``0`` disables it.
+        coarse_to_fine: if True, only the part ``center`` parameters are updated
+            for the first ``coarse_frac`` of steps; the rest unfreeze afterwards.
+        coarse_frac: fraction of ``num_steps`` spent in the centers-only phase.
+    """
     target_points = target_points.to(device)
     target_values = target_values.to(device)
 
-    params = list(collect_parameters(tree, device).values())
+    named = collect_parameters(tree, device)
+    names = list(named.keys())
+    params = list(named.values())
+    # Snapshot the starting point for the regularisation term.
+    initial = [p.detach().clone() for p in params]
+    # Parameters frozen during the coarse phase = everything that is not a center.
+    coarse_steps = int(coarse_frac * num_steps) if coarse_to_fine else 0
+    non_center = [not n.endswith(".center") for n in names]
+
     opt = _OPTIMIZERS[optimizer](params, lr)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=num_steps)
 
@@ -96,13 +123,26 @@ def fit(
         opt.zero_grad()
         pred, _ = evaluate(tree, target_points)
         loss = _loss(pred, target_values, truncation)
-        loss.backward()
+        total = loss
+        if reg_weight > 0:
+            reg = sum(F.mse_loss(p, p0) for p, p0 in zip(params, initial))
+            total = total + reg_weight * reg
+        total.backward()
+        if step < coarse_steps:
+            # Centers-only phase: drop gradients of frozen (non-center) params.
+            for p, frozen in zip(params, non_center):
+                if frozen and p.grad is not None:
+                    p.grad.zero_()
         opt.step()
         sched.step()
 
         history.append(loss.item())
         if verbose and step % log_every == 0:
-            print(f"  step {step:5d}  loss {loss.item():.6f}  lr {sched.get_last_lr()[0]:.2e}")
+            phase = "coarse" if step < coarse_steps else "fine"
+            print(
+                f"  step {step:5d}  loss {loss.item():.6f}  "
+                f"lr {sched.get_last_lr()[0]:.2e}  [{phase}]"
+            )
         if step_callback is not None and step % log_every == 0:
             step_callback(step, tree, loss.item())
 

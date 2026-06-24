@@ -52,3 +52,41 @@ def test_colors_shape():
     grid = create_grid(16)
     sdf, colors = evaluate(parse_tree(_two_spheres("union")), grid, with_colors=True)
     assert colors.shape == (grid.shape[0], 3)
+
+
+def test_llm_legacy_prism_axis_and_part():
+    # Schema exactly as the LLM hypothesis generator emits it.
+    legacy = {
+        "operation": "Union",
+        "left": {
+            "type": "Prism0",
+            "params": {"center": [0, 0, 0], "sizes": [0.6, 0.05, 0.02], "axis": [1, 0, 0]},
+            "part": "Blade",
+        },
+        "right": {
+            "type": "Cylinder0",
+            "params": {"center": [0, 0, 0.2], "radius": 0.05, "height": 0.3, "axis": [0, 0, 1]},
+            "part": "Handle",
+        },
+    }
+    tree = parse_tree(legacy)
+    leaves = {l.name: l for l in iter_leaves(tree)}
+    # "part" labels become leaf names.
+    assert set(leaves) == {"Blade", "Handle"}
+    # Prism -> box; box ignores the (meaningless) axis and gets zero rotation.
+    assert leaves["Blade"].shape == "box"
+    assert torch.allclose(leaves["Blade"].params["rotation"], torch.zeros(3))
+    # Vertical cylinder axis [0,0,1] -> identity rotation.
+    assert leaves["Handle"].shape == "cylinder"
+    assert torch.allclose(leaves["Handle"].params["rotation"], torch.zeros(3), atol=1e-4)
+
+
+def test_legacy_axis_direction_becomes_rotation():
+    # A cylinder pointing along +X should rotate canonical +Z onto +X.
+    from fitcsg.transforms import euler_deg_to_matrix
+
+    leaf = {"type": "Cylinder0", "params": {"center": [0, 0, 0], "radius": 0.1, "height": 0.5, "axis": [1, 0, 0]}}
+    tree = parse_tree(leaf)
+    rot = next(iter_leaves(tree)).params["rotation"]
+    mapped_z = euler_deg_to_matrix(rot) @ torch.tensor([0.0, 0.0, 1.0])
+    assert torch.allclose(mapped_z, torch.tensor([1.0, 0.0, 0.0]), atol=1e-4)

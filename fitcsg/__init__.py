@@ -21,6 +21,7 @@ from .csg import (
 from .grid import create_grid, surface_points
 from .optimize import FitResult, fit, fit_with_restarts, randomize_leaf_params
 from .primitives import PRIMITIVES, get_primitive
+from .segment import segment_point_cloud
 from .synthetic import sample_target_from_tree
 
 __all__ = [
@@ -41,4 +42,5 @@ __all__ = [
     "PRIMITIVES",
     "get_primitive",
     "sample_target_from_tree",
+    "segment_point_cloud",
 ]
