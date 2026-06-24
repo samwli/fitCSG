@@ -14,10 +14,12 @@ Improvements over the original ``fit_csg.py``:
   LLM proposes a *meaningful* abstract shape, we can penalise drifting far from
   it. This was ``reg_beta`` in the original research code and keeps the fit from
   collapsing into a degenerate but low-loss configuration;
-* an optional **coarse-to-fine** schedule (``coarse_to_fine``): first move only
-  the part *centers* (place the pieces), then unfreeze every parameter to refine
-  sizes/rotations. This mirrors the two-phase ``all_params`` trick from the
-  original code and is far more stable than optimising everything at once.
+* an optional **multi-stage** schedule (``coarse_to_fine``): following the paper
+  (CSGGrasp Sec. III-C.3), parameters unfreeze in three stages over the run --
+  **centers first** (positional alignment), then **scales** (size/radius/height/
+  tube; refine proportions), then **rotations** (tune orientation). This staged
+  schedule "prevents overfitting and collapse" and is far more stable than
+  optimising everything at once.
 
 The tree topology is fixed; only the continuous leaf parameters move.
 """
@@ -39,6 +41,17 @@ _OPTIMIZERS: Dict[str, Callable] = {
     "adamw": lambda p, lr: torch.optim.AdamW(p, lr=lr or 5e-3, weight_decay=1e-2),
     "sgd": lambda p, lr: torch.optim.SGD(p, lr=lr or 1e-2, momentum=0.9),
     "rmsprop": lambda p, lr: torch.optim.RMSprop(p, lr=lr or 1e-3),
+}
+
+# Multi-stage schedule order (CSGGrasp Sec. III-C.3): centers, then scales, then
+# rotations. Any unlisted (size-like) param defaults to the middle "scales" stage.
+_PARAM_STAGE: Dict[str, int] = {
+    "center": 0,
+    "size": 1,
+    "radius": 1,
+    "height": 1,
+    "tube": 1,
+    "rotation": 2,
 }
 
 
@@ -88,7 +101,6 @@ def fit(
     truncation: Optional[float] = 0.1,
     reg_weight: float = 0.0,
     coarse_to_fine: bool = False,
-    coarse_frac: float = 0.5,
     device="cpu",
     log_every: int = 200,
     step_callback: Optional[Callable[[int, Node, float], None]] = None,
@@ -99,9 +111,8 @@ def fit(
     Args:
         reg_weight: strength of the L2 pull back toward the *initial* parameter
             values (the hypothesis we started from). ``0`` disables it.
-        coarse_to_fine: if True, only the part ``center`` parameters are updated
-            for the first ``coarse_frac`` of steps; the rest unfreeze afterwards.
-        coarse_frac: fraction of ``num_steps`` spent in the centers-only phase.
+        coarse_to_fine: if True, parameters unfreeze in three stages over the
+            run -- centers, then scales, then rotations (CSGGrasp Sec. III-C.3).
     """
     target_points = target_points.to(device)
     target_values = target_values.to(device)
@@ -111,9 +122,10 @@ def fit(
     params = list(named.values())
     # Snapshot the starting point for the regularisation term.
     initial = [p.detach().clone() for p in params]
-    # Parameters frozen during the coarse phase = everything that is not a center.
-    coarse_steps = int(coarse_frac * num_steps) if coarse_to_fine else 0
-    non_center = [not n.endswith(".center") for n in names]
+    # Stage index per parameter for the multi-stage schedule:
+    # 0 = center (first), 1 = scale-like, 2 = rotation (last).
+    param_stage = [_PARAM_STAGE.get(n.rsplit(".", 1)[-1], 1) for n in names]
+    num_stages = 3
 
     opt = _OPTIMIZERS[optimizer](params, lr)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=num_steps)
@@ -130,20 +142,22 @@ def fit(
             reg = sum(F.mse_loss(p, p0) for p, p0 in zip(params, initial))
             total = total + reg_weight * reg
         total.backward()
-        if step < coarse_steps:
-            # Centers-only phase: drop gradients of frozen (non-center) params.
-            for p, frozen in zip(params, non_center):
-                if frozen and p.grad is not None:
+        active_stage = num_stages - 1
+        if coarse_to_fine:
+            # Progressively unfreeze: a param trains once its stage is active.
+            active_stage = min(num_stages - 1, (step * num_stages) // max(num_steps, 1))
+            for p, stage in zip(params, param_stage):
+                if stage > active_stage and p.grad is not None:
                     p.grad.zero_()
         opt.step()
         sched.step()
 
         history.append(loss.item())
         if verbose and step % log_every == 0:
-            phase = "coarse" if step < coarse_steps else "fine"
+            stage_name = ("centers", "scales", "rotations")[active_stage]
             print(
                 f"  step {step:5d}  loss {loss.item():.6f}  "
-                f"lr {sched.get_last_lr()[0]:.2e}  [{phase}]"
+                f"lr {sched.get_last_lr()[0]:.2e}  [{stage_name}]"
             )
         if step_callback is not None and step % log_every == 0:
             step_callback(step, tree, loss.item())

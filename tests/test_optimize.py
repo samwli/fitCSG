@@ -36,7 +36,6 @@ def test_coarse_to_fine_and_reg_run():
         lr=1e-2,
         reg_weight=1e-3,
         coarse_to_fine=True,
-        coarse_frac=0.5,
         verbose=False,
     )
     assert result.history[-1] < result.history[0]

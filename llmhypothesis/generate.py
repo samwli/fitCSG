@@ -84,7 +84,7 @@ def generate_tree(tns, object_name, prompt_path, out_path, hypothesis=None):
 def main():
     parser = argparse.ArgumentParser(description="Generate CSG hypotheses with an LLM")
     parser.add_argument("--object", required=True, help="object name, e.g. 'mug'")
-    parser.add_argument("--model", default="gpt-4o", help="gpt-4o is cheap; o1-preview is stronger but pricey")
+    parser.add_argument("--model", default="o3-mini", help="o3-mini (paper default); gpt-4o is a cheap alternative")
     parser.add_argument("--num_variants", type=int, default=1, help="how many distinct instances to generate")
     parser.add_argument("--outdir", default=os.path.join(HERE, "csg_hypotheses"))
     parser.add_argument("--api_key", default=os.environ.get("OPENAI_API_KEY", ""))
